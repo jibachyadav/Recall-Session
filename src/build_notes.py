@@ -69,8 +69,12 @@ def process_session(session_dir, ask=llm.ask, log=print):
     session_dir = Path(session_dir)
     live = session_dir / "transcript_live.json"
     settings = session_dir / "session.json"
-    live_ok = live.exists() and settings.exists() and json.loads(settings.read_text()).get("live_complete")
-    if live_ok and config.USE_LIVE_TRANSCRIPT and not (session_dir / "transcript_final.json").exists():
+    info = json.loads(settings.read_text()) if settings.exists() else {}
+    live_ok = live.exists() and info.get("live_complete")
+    # The live text is English only. For Nepali or Hindi the after-class pass is needed: it keeps the
+    # original-language transcript and makes a better English version.
+    english_speech = info.get("spoken", "auto") in ("auto", "en") and info.get("spoken_language", "en") == "en"
+    if live_ok and english_speech and config.USE_LIVE_TRANSCRIPT and not (session_dir / "transcript_final.json").exists():
         log("Using the live transcript (instant)...")
         (session_dir / "transcript_final.json").write_text(live.read_text())
     if not (session_dir / "transcript_final.json").exists():

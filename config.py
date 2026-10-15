@@ -110,3 +110,10 @@ LIVE_WAIT_SECONDS = 30            # how long Live session waits for a call to st
 
 # Documents: accuracy matters more than speed, so use a bigger free local model (about 2.5x slower than the live one)
 DOCUMENT_MODEL = "qwen2.5:3b"
+
+# Spoken language: tell the app what language the speaker uses (instead of letting it guess)
+SPOKEN_LANGUAGES = {"auto": "Detect automatically", "en": "English", "ne": "Nepali", "hi": "Hindi"}
+LANGUAGE_NAMES = {"en": "English", "ne": "Nepali", "hi": "Hindi"}
+# Final (after-class) transcription model per language. The default `small` is unusable for Nepali (about
+# 100% word errors in our test) so Nepali uses the big model (41%, about half real time on this laptop).
+FINAL_MODEL_FOR = {"ne": "large-v3-turbo"}

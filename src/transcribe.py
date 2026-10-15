@@ -28,10 +28,15 @@ def get_batched(name=None):
     return _batched[name]
 
 
-def transcribe(audio_path, task="transcribe", language=None, terms=""):
+def model_for(language):
+    """The model used for the final transcript of a given spoken language."""
+    return config.FINAL_MODEL_FOR.get(language, config.WHISPER_MODEL)
+
+
+def transcribe(audio_path, task="transcribe", language=None, terms="", model=None):
     """Return (segments, spoken_language). task="translate" gives English text for any language."""
     # without_timestamps=False keeps sentence-sized segments (needed for flag highlights)
-    segments, info = get_batched().transcribe(str(audio_path), task=task, language=language,
+    segments, info = get_batched(model).transcribe(str(audio_path), task=task, language=language,
                                               batch_size=config.WHISPER_BATCH_SIZE, without_timestamps=False,
                                               initial_prompt=f"Vocabulary: {terms}." if terms.strip() else None)
     return ([{"start": round(s.start, 2), "end": round(s.end, 2), "text": s.text.strip()}
@@ -39,18 +44,32 @@ def transcribe(audio_path, task="transcribe", language=None, terms=""):
 
 
 def transcribe_session(session_dir):
-    """Transcribe recording.wav into English text (translating foreign speech).
+    """Transcribe recording.wav. Returns the ENGLISH transcript (what summaries, highlights and questions use).
 
-    Saves transcript_final.json (English) and, for foreign speech, transcript_original.json.
+    Spoken English: one pass. Spoken Nepali / Hindi (chosen in the name window, or detected): the original-language
+    transcript is also kept in transcript_original.json, and the English version comes from Claude when it works,
+    otherwise from Whisper's own (rough) translation. session.json records how the English was made.
     """
     session_dir = Path(session_dir)
     audio = session_dir / "recording.wav"
     settings = session_dir / "session.json"
-    terms = json.loads(settings.read_text()).get("terms", "") if settings.exists() else ""
-    segments, spoken = transcribe(audio, terms=terms)
-    if spoken != "en":
+    info = json.loads(settings.read_text()) if settings.exists() else {}
+    terms, chosen = info.get("terms", ""), info.get("spoken", "auto")
+    language = None if chosen == "auto" else chosen
+    segments, detected = transcribe(audio, language=language, terms=terms, model=model_for(language) if language else None)
+    spoken = language or detected
+    if spoken == "en":
+        english_source = None
+    else:
+        if language is None and model_for(spoken) != config.WHISPER_MODEL:      # detected a language that needs the big model
+            segments, _ = transcribe(audio, language=spoken, terms=terms, model=model_for(spoken))
         (session_dir / "transcript_original.json").write_text(json.dumps(segments, indent=2))
-        segments, _ = transcribe(audio, task="translate", language=spoken, terms=terms)
+        try:
+            from src import translate
+            segments, english_source = translate.to_english(segments, spoken), "claude"
+        except Exception:                                                        # no key / credit / internet: rough offline version
+            segments, _ = transcribe(audio, task="translate", language=spoken, terms=terms)
+            english_source = "whisper"
     (session_dir / "transcript_final.json").write_text(json.dumps(segments, indent=2))
-    save_settings(session_dir, spoken_language=spoken)
+    save_settings(session_dir, spoken_language=spoken, english_source=english_source)
     return segments
