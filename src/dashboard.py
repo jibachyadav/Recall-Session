@@ -2,6 +2,7 @@
 import tkinter as tk
 from datetime import datetime
 
+import config
 from src.sessions import fmt_duration, list_sessions
 from src.theme import (ACCENT, BG, BORDER, DANGER, DARK_TEXT, INK, MUTED, SURFACE, SURFACE_HI, f, mix,
                        rounded_rect)
@@ -132,7 +133,9 @@ def session_row(parent, s, on_open, on_delete, selected, on_select):
 
 
 def ask_name(parent, kind):
-    """Small modal window asking for the session name. Returns (name, ""); name is None if cancelled."""
+    """Small modal window asking for the session name and the spoken language.
+
+    Returns (name, spoken); name is None if cancelled; spoken is "auto", "en", "ne" or "hi"."""
     default = {"live": "Live session", "video": "YouTube video"}[kind]
     heading = {"live": "Name this live class", "video": "Name this video"}[kind]
     color = ACCENT[kind]
@@ -146,11 +149,29 @@ def ask_name(parent, kind):
              bg=SURFACE, fg=MUTED).pack(anchor="w", padx=26)
     entry = tk.Entry(win, font=f(12), width=34, relief="flat", bg=BG, fg=INK, insertbackground=INK,
                      highlightthickness=1, highlightbackground=BORDER, highlightcolor=color)
-    entry.pack(padx=26, pady=16, ipady=8)
-    result = {"name": None}
+    entry.pack(padx=26, pady=(16, 10), ipady=8)
+    tk.Label(win, text="What language will be spoken?", font=f(10, "bold"), bg=SURFACE, fg=MUTED
+             ).pack(anchor="w", padx=26)
+    labels = list(config.SPOKEN_LANGUAGES.values())
+    choice = tk.StringVar(value=labels[0])
+    menu = tk.OptionMenu(win, choice, *labels)
+    menu.config(font=f(11), bg=BG, fg=INK, activebackground=SURFACE_HI, activeforeground=INK, relief="flat",
+                highlightthickness=1, highlightbackground=BORDER, anchor="w", width=30, cursor="hand2")
+    menu["menu"].config(font=f(11), bg=SURFACE, fg=INK, activebackground=color, activeforeground=DARK_TEXT, relief="flat")
+    menu.pack(padx=26, pady=(4, 4), fill="x")
+    hint = tk.Label(win, text="", font=f(9), bg=SURFACE, fg=MUTED, wraplength=360, justify="left")
+    hint.pack(anchor="w", padx=26, pady=(0, 14))
+    notes = {"ne": "Nepali: the live text is skipped. Your full transcript, in Nepali and English, is made after you stop.",
+             "hi": "Hindi: live text is shown in English (rough). The Hindi transcript is also saved.",
+             "auto": "The app listens and guesses the language. Choosing it yourself is more reliable."}
+    codes = {v: k for k, v in config.SPOKEN_LANGUAGES.items()}
+    choice.trace_add("write", lambda *_: hint.config(text=notes.get(codes[choice.get()], "")))
+    hint.config(text=notes["auto"])
+    result = {"name": None, "spoken": "auto"}
 
     def ok(_event=None):
         result["name"] = entry.get().strip() or default
+        result["spoken"] = codes[choice.get()]
         win.destroy()
 
     row = tk.Frame(win, bg=SURFACE)
@@ -168,7 +189,7 @@ def ask_name(parent, kind):
     win.grab_set()
     entry.focus_set()
     win.wait_window()
-    return result["name"], ""
+    return result["name"], result["spoken"]
 
 
 def _greeting():
@@ -187,7 +208,7 @@ def _logo(parent):
 
 
 def build(parent, on_start, on_open, on_delete, state, user=None, on_account=None, on_logout=None):
-    """Build the dashboard frame. on_start(kind, title, terms), on_open(path), on_delete(list_of_sessions).
+    """Build the dashboard frame. on_start(kind, title, spoken), on_open(path), on_delete(list_of_sessions).
     `state` ({"open": kind or None}) is kept by the caller so the open list survives a redraw."""
     root = tk.Frame(parent, bg=BG)
     sessions = list_sessions()
@@ -221,9 +242,9 @@ def build(parent, on_start, on_open, on_delete, state, user=None, on_account=Non
     def start(kind):
         if kind == "document":      # the file's own name is the title: no name window
             return on_start("document", "", "")
-        name, terms = ask_name(root, kind)
+        name, spoken = ask_name(root, kind)
         if name:
-            on_start(kind, name, terms)
+            on_start(kind, name, spoken)
 
     specs = [("live", "Live session", "An online class on Zoom, Teams or Meet. Records the teacher and your own voice.", "live sessions"),
              ("video", "YouTube video", "A video or recorded lecture playing on this computer. Records its sound.", "videos"),
@@ -242,7 +263,7 @@ def build(parent, on_start, on_open, on_delete, state, user=None, on_account=Non
         if open_:
             area.pack(fill="both", expand=True, padx=40, pady=(8, 26))
         win = root.winfo_toplevel()
-        if win.state() == "normal":                     # leave a maximised or full-screen window alone
+        if win.state() == "normal" and win.winfo_ismapped() and win.winfo_width() > 100:   # (and not before it is shown)
             win.update_idletasks()
             if open_:
                 want = HEIGHT_OPEN

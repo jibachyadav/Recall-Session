@@ -15,11 +15,13 @@ from src.transcribe import get_model
 class LiveTranscriber:
     """Events are put on `events`: ("text", start_seconds, text) / ("summary", text)."""
 
-    def __init__(self, recorder, language="en", terms=""):
+    def __init__(self, recorder, language="en", terms="", spoken="auto"):
+        """spoken: the language the speaker uses ("auto", "en", "ne", "hi"). Chosen by the user, so no guessing."""
         self.recorder = recorder
         self.language = language
+        self.chosen = spoken
         self.prompt = f"Vocabulary: {terms}." if terms.strip() else None  # helps Whisper spell technical words
-        self._spoken = None  # spoken language, detected on the first chunk with speech
+        self._spoken = None if spoken == "auto" else spoken  # else detected on the first chunk with speech
         self.events = queue.Queue()
         self._recent = []  # (start_seconds, text)
         self._shown = set()  # chunk starts already sent to the panel
@@ -67,6 +69,13 @@ class LiveTranscriber:
 
     def _transcribe_loop(self):
         """Reader thread: grey drafts while you speak. A second thread makes the accurate text."""
+        if self.chosen == "ne":
+            # The fast models cannot read Nepali (about 100% word errors in our test), so show nothing misleading.
+            # Keep emptying the audio pipe so the recording is never blocked; the full transcript is made after Stop.
+            self.events.put(("status", "Live text is not available for Nepali. Your full transcript is made after you stop."))
+            while len(self.recorder.read_pcm(1)) > 0:
+                pass
+            return
         draft = get_model(config.LIVE_DRAFT_MODEL)
         final = get_model(config.LIVE_WHISPER_MODEL)
         if self.language != "en" and not llm.available():

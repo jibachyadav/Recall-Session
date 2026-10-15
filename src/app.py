@@ -133,17 +133,17 @@ class App:
         self.show_home()
 
     # ---- 2. recording -----------------------------------------------------
-    def start(self, kind, title, terms=""):
+    def start(self, kind, title, spoken="auto"):
         """kind: "live" (microphone) or "video" (YouTube, Zoom, anything playing on this computer)."""
         if kind == "document":
             return self.start_document()
         if kind != "live" or not config.LIVE_REQUIRE_CALL or not osdep.call_detection_supported():
-            return self._begin(kind, title, terms)       # (on a system that can't detect calls, don't block)
+            return self._begin(kind, title, spoken)       # (on a system that can't detect calls, don't block)
         # A live session needs an online class: a meeting app using the microphone and the speakers.
         app = quiet.call_running()
         if app:
-            return self._begin(kind, title, terms)
-        self._wait_for_class(title, terms)
+            return self._begin(kind, title, spoken)
+        self._wait_for_class(title, spoken)
 
     def start_document(self):
         """Choose a PDF / Word / text file with the desktop's file chooser, then open it."""
@@ -176,7 +176,7 @@ class App:
             return messagebox.showinfo("Can't read this file", str(e))
         self.show_document_result(session)
 
-    def _wait_for_class(self, title, terms):
+    def _wait_for_class(self, title, spoken):
         """Wait up to LIVE_WAIT_SECONDS for a Zoom/Teams/Meet call; start as soon as one begins."""
         win = tk.Toplevel(self.root)
         win.title("Live session")
@@ -222,7 +222,7 @@ class App:
                 return win.after(300, poll)
             win.destroy()
             if result == "call":
-                self._begin("live", title, terms)
+                self._begin("live", title, spoken)
             else:
                 messagebox.showinfo("No online class found",
                                     "I couldn't find a Zoom, Teams or Meet call, so nothing was recorded.\n\n"
@@ -232,10 +232,10 @@ class App:
 
         poll()
 
-    def _begin(self, kind, title, terms):
+    def _begin(self, kind, title, spoken):
         source = "mic" if kind == "live" else "system"
         session = new_session_dir(title or kind.title())
-        save_settings(session, type=kind, title=title or kind.title(), terms=terms)
+        save_settings(session, type=kind, title=title or kind.title(), spoken=spoken)
         self.rec = Recorder(session / "recording.wav", live=True, source=SOURCES[source][1])
         try:
             self.rec.start()
@@ -245,7 +245,7 @@ class App:
             return
         quiet.mute()  # no shutter sound when you flag
         logger = FlagLogger(self.rec, session)
-        live = LiveTranscriber(self.rec, "en", terms)
+        live = LiveTranscriber(self.rec, "en", spoken=spoken)
         live.start()
         self.live = live
         self.session = session
