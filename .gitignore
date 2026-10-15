@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.pyc
+sessions/*
+!sessions/.gitkeep
+.env
+users.json
+.remember
+migrated-backup/
+.gnome_settings_backup.json
+*.wav
+.DS_Store

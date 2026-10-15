@@ -1,0 +1,109 @@
+"""Everything that differs between operating systems lives here, so the rest of the app doesn't care.
+
+Linux is fully supported. Windows has the pieces that don't need audio capture (see the notes on each function).
+"""
+import json
+import os
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+import config
+
+IS_LINUX = sys.platform.startswith("linux")
+IS_WINDOWS = sys.platform.startswith("win")
+
+
+def ensure_data_dir():
+    config.DATA_DIR.mkdir(parents=True, exist_ok=True)
+    return config.DATA_DIR
+
+
+def migrate_legacy_data(log=lambda m: None):
+    """Bring data from the old place (inside the program folder) to the user's data folder, once.
+
+    Safe by design:
+    - it copies first, checks the copy, and only then moves the originals into a backup folder.
+      NOTHING is ever deleted, so a mistake can always be undone;
+    - it does nothing when the new place already has data (never overwrites);
+    - it does nothing when the data folder was chosen on purpose (RECALL_SESSION_DATA), as in tests.
+    Returns the list of things brought over."""
+    if os.environ.get("RECALL_SESSION_DATA") or config.APP_DIR == config.DATA_DIR:
+        return []
+    old_sessions, new_sessions = config.APP_DIR / "sessions", config.DATA_DIR / "sessions"
+    ensure_data_dir()
+    new_has_data = (config.DATA_DIR / "users.json").exists() or (new_sessions.exists() and any(new_sessions.iterdir()))
+    if new_has_data:
+        return []
+    todo = []                                            # (source, destination)
+    if old_sessions.exists():
+        todo += [(d, new_sessions / d.name) for d in sorted(old_sessions.iterdir()) if d.is_dir()]
+    todo += [(config.APP_DIR / n, config.DATA_DIR / n) for n in ("users.json", ".remember") if (config.APP_DIR / n).exists()]
+    if not todo:
+        return []
+    new_sessions.mkdir(parents=True, exist_ok=True)
+    created = []                                         # copies WE made, so a failure can remove exactly these
+
+    def size(path):
+        return sum(f.stat().st_size for f in path.rglob("*") if f.is_file()) if path.is_dir() else path.stat().st_size
+
+    try:
+        for src, dst in todo:                            # 1. copy everything
+            shutil.copytree(src, dst) if src.is_dir() else shutil.copy2(src, dst)
+            created.append(dst)
+        for src, dst in todo:                            # 2. check every copy before touching an original
+            if not dst.exists() or size(src) != size(dst):
+                raise OSError(f"Copying {src.name} did not match the original.")
+    except Exception as e:
+        for dst in created:                              # undo our own partial copies; the originals were never touched
+            shutil.rmtree(dst, ignore_errors=True) if dst.is_dir() else dst.unlink(missing_ok=True)
+        raise OSError(f"Moving your data to its new place failed ({e}). Nothing was moved; your data is unchanged.") from e
+    backup = config.APP_DIR / "migrated-backup"          # 3. keep the originals, out of the way
+    backup.mkdir(exist_ok=True)
+    for src, _ in todo:
+        shutil.move(str(src), str(backup / src.name))
+    old_env = config.APP_DIR / ".env"
+    if old_env.exists() and not config.ENV_FILE.exists():
+        shutil.copy2(old_env, config.ENV_FILE)           # keep the API key working
+    names = [src.name for src, _ in todo]
+    log(f"Copied {len(names)} item(s) to {config.DATA_DIR}. The originals are kept in {backup}")
+    return names
+
+
+def move_to_trash(path):
+    """Send a file or folder to the Trash / Recycle Bin (recoverable). Raises OSError if it can't."""
+    from send2trash import send2trash
+    try:
+        send2trash(str(path))
+    except Exception as e:
+        raise OSError(str(e)) from e
+
+
+def take_screenshot(path):
+    """Save a picture of the whole screen. Returns True on success."""
+    path = Path(path)
+    if IS_LINUX:                                   # Wayland (GNOME) only allows this through its own tool
+        for cmd in (["gnome-screenshot", "-f", str(path)], ["grim", str(path)], ["scrot", str(path)]):
+            if shutil.which(cmd[0]):
+                subprocess.run(cmd, capture_output=True)
+                if path.exists():
+                    return True
+        return False
+    try:                                           # Windows / macOS
+        import mss
+        with mss.mss() as grabber:
+            mss.tools.to_png(*(lambda shot: (shot.rgb, shot.size))(grabber.grab(grabber.monitors[0])), output=str(path))
+        return path.exists()
+    except Exception:
+        return False
+
+
+def call_detection_supported():
+    """Can this computer tell that a Zoom/Teams/Meet call is running? (Linux with PipeWire only, so far.)"""
+    return IS_LINUX and shutil.which("pw-dump") is not None
+
+
+def audio_recording_supported():
+    """Can the app capture the sound of calls and videos? (Linux for now; the Windows version is not built yet.)"""
+    return IS_LINUX

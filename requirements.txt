@@ -1,0 +1,8 @@
+faster-whisper
+av>=14,<17              # av 19 breaks faster-whisper 1.2.1
+anthropic
+pypdf
+python-docx
+send2trash
+jeepney; sys_platform == "linux"        # the Linux file chooser
+mss; sys_platform != "linux"            # screenshots on Windows / macOS
