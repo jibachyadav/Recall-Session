@@ -15,7 +15,7 @@ import config
 from src import dashboard, llm, quiet, theme
 from src.theme import ACCENT, DANGER, DARK_TEXT, FONT, HIGHLIGHT_FLAG, HIGHLIGHT_KEY, INK, MUTED, SURFACE, mix, render_markdown
 from src.language import save_settings
-from src import auth, documents, filechooser, osdep
+from src import auth, documents, filechooser, osdep, settings, translate
 from src.auth_ui import AuthFlow
 from src.build_notes import process_session
 from src.hotkey_logger import FlagLogger, fmt
@@ -497,6 +497,10 @@ class App:
         for color, label in ((HIGHLIGHT_FLAG, "You flagged it"), (HIGHLIGHT_KEY, "Stressed as important")):
             tk.Label(key, text="   ", bg=color).pack(side="left")
             tk.Label(key, text=label, fg=MUTED, font=(FONT, 9)).pack(side="left", padx=(4, 16))
+        info = json.loads(meta.read_text()) if meta.exists() else {}
+        language = info.get("spoken_language", "en")
+        if language != "en" and info.get("english_source") == "whisper":
+            self._rough_english_bar(f, session, language)
         tabs = ttk.Notebook(f)
         tabs.pack(fill="both", expand=True, padx=12, pady=(0, 12))
 
@@ -523,9 +527,64 @@ class App:
         segs = json.loads(tr.read_text()) if tr.exists() else []
         add_tab("Full transcript", "" if segs else "(no speech was transcribed)",
                 paragraphs(segs, [x["timestamp"] for x in flags], load_important(session)))
+        original = session / "transcript_original.json"
+        if original.exists():                      # Nepali / Hindi: what was actually said, in its own language
+            add_tab(f"Original ({config.LANGUAGE_NAMES.get(language, 'original')})", "",
+                    paragraphs(json.loads(original.read_text()), [x["timestamp"] for x in flags]))
         add_tab(f"Flagged ({len(flags)})", "\n".join(fmt(x["timestamp"]) for x in flags)
                 or "Nothing was flagged.")
         self._show(f, self._center(860, 680))
+
+    def _rough_english_bar(self, parent, session, language):
+        """A warning above the transcript: the English was made offline and may be wrong. Offers a better one."""
+        name = config.LANGUAGE_NAMES.get(language, language)
+        bar = tk.Frame(parent, bg=mix(SURFACE, "#ffb454", 0.14), highlightthickness=1,
+                       highlightbackground=mix(SURFACE, "#ffb454", 0.5))
+        bar.pack(fill="x", padx=12, pady=(0, 10))
+        tk.Label(bar, text=f"The English text was made offline from {name} speech and can be wrong"
+                           + (", sometimes very wrong." if language == "ne" else "."),
+                 font=(FONT, 10, "bold"), bg=bar["bg"], fg=INK, anchor="w").pack(side="left", padx=12, pady=8)
+        note = tk.Label(bar, text="", font=(FONT, 9), bg=bar["bg"], fg=MUTED)
+        button = tk.Button(bar, text="Improve with Claude", font=(FONT, 10, "bold"), padx=12, pady=4,
+                           bg=ACCENT["live"], fg=DARK_TEXT)
+        button.pack(side="right", padx=10, pady=6)
+        note.pack(side="right", padx=4)
+
+        def improve():
+            if not settings.has_key():
+                return messagebox.showinfo("Add a Claude key first",
+                                           "A better English version needs a Claude API key.\n\n"
+                                           "Open Account, then AI features, paste your key and press Save key.")
+            button.config(state="disabled", text="Translating...")
+            note.config(text="This can take a minute")
+            result = queue.Queue()
+
+            def work():
+                try:
+                    translate.retranslate_session(session)
+                    process_session(session, log=lambda m: None)         # rebuild summary, highlights and notes
+                    result.put(None)
+                except Exception as e:
+                    result.put(str(e) if isinstance(e, translate.TranslateError) else f"Something went wrong ({type(e).__name__}).")
+
+            threading.Thread(target=work, daemon=True).start()
+
+            def check():
+                if not bar.winfo_exists():
+                    return
+                try:
+                    problem = result.get_nowait()
+                except queue.Empty:
+                    return bar.after(300, check)
+                if problem is None:
+                    return self.show_result(session)
+                button.config(state="normal", text="Improve with Claude")
+                note.config(text="")
+                messagebox.showinfo("Couldn't improve the English", f"{problem}\n\nThe offline English is unchanged.")
+
+            check()
+
+        button.config(command=improve)
 
     def run(self):
         self.root.mainloop()

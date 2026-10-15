@@ -59,6 +59,11 @@ def build_notes(session_dir):
     lines += ["## Full transcript", "",
               "Yellow = what was being said when you pressed Flag. Green = stressed as important.", "",
               to_markdown(shown, [f["timestamp"] for f in flags], load_important(session_dir)) or "_(no speech was transcribed)_", ""]
+    original = load("transcript_original.json", None)
+    if original:                                   # Nepali / Hindi: keep what was actually said, in its own language
+        name = config.LANGUAGE_NAMES.get(load("session.json", {}).get("spoken_language"), "original language")
+        lines += ["", f"## Original transcript ({name})", "",
+                  to_markdown(original, [f["timestamp"] for f in flags]) or "_(no speech was transcribed)_", ""]
     path = session_dir / "notes_final.md"
     path.write_text("\n".join(lines))
     return path
