@@ -50,8 +50,8 @@ def transcribe_session(session_dir):
     """Transcribe recording.wav. Returns the ENGLISH transcript (what summaries, highlights and questions use).
 
     Spoken English: one pass. Spoken Nepali / Hindi (chosen in the name window, or detected): the original-language
-    transcript is also kept in transcript_original.json, and the English version comes from Claude when it works,
-    otherwise from Whisper's own (rough) translation. session.json records how the English was made.
+    transcript is kept in transcript_original.json. The English version comes from Claude when it works; otherwise
+    english_source is "none" (made on demand with make_offline_english) or, for Hindi, the English from the live panel.
     """
     session_dir = Path(session_dir)
     audio = session_dir / "recording.wav"
@@ -70,9 +70,15 @@ def transcribe_session(session_dir):
         try:
             from src import translate
             segments, english_source = translate.to_english(segments, spoken), "claude"
-        except Exception:                                                        # no key / credit / internet: rough offline version
-            segments, _ = transcribe(audio, task="translate", language=spoken, terms=terms)
-            english_source = "whisper"
+        except Exception:
+            # No Claude. Skip the slow offline translation (about 28% more time, and unreliable for Nepali): the
+            # English version is made on demand. The one free exception: Hindi's live panel already made English.
+            live = session_dir / "transcript_live.json"
+            live_english = json.loads(live.read_text()) if live.exists() and info.get("live_complete") else []
+            if spoken == "hi" and live_english:
+                segments, english_source = live_english, "whisper"
+            else:
+                english_source = "none"      # transcript_final.json holds the original text until English is made
     (session_dir / "transcript_final.json").write_text(json.dumps(segments, indent=2))
     save_settings(session_dir, spoken_language=spoken, english_source=english_source)
     return segments
@@ -87,3 +93,27 @@ def estimate_message(language, audio_seconds):
     name = config.LANGUAGE_NAMES.get(language, language)
     return (f"Transcribing {name} speech: about {minutes} minute{'s' if minutes != 1 else ''} for this recording. "
             "This is the slow step; closing other programs makes it faster.")
+
+
+def make_offline_english(session_dir):
+    """Make a rough English version of a Nepali / Hindi session with Whisper's own translation (small model, offline).
+
+    Slow-ish (about 0.12x the recording) and unreliable for Nepali, so it only runs when the user asks. Removes the
+    outputs built from the old text, so the caller can rebuild them."""
+    session_dir = Path(session_dir)
+    info_file = session_dir / "session.json"
+    info = json.loads(info_file.read_text()) if info_file.exists() else {}
+    language = info.get("spoken_language")
+    if not language or language == "en":
+        raise ValueError("This session was in English: there is nothing to translate.")
+    segments, _ = transcribe(session_dir / "recording.wav", task="translate", language=language)
+    (session_dir / "transcript_final.json").write_text(json.dumps(segments, indent=2))
+    save_settings(session_dir, english_source="whisper")
+    for stale in ("summary.md", "important.json", "explanations.json", "notes_final.md"):
+        (session_dir / stale).unlink(missing_ok=True)
+    return segments
+
+
+def offline_english_message(audio_seconds):
+    minutes = max(1, round(audio_seconds * config.OFFLINE_ENGLISH_FACTOR / 60))
+    return f"about {minutes} minute{'s' if minutes != 1 else ''}"

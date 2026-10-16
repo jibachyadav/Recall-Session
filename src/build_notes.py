@@ -97,6 +97,11 @@ def process_session(session_dir, ask=llm.ask, log=print):
             except Exception:
                 pass
         transcribe_session(session_dir)
+    info = json.loads(settings.read_text()) if settings.exists() else {}
+    if info.get("english_source") == "none":      # Nepali / Hindi with no English version yet
+        log("No English version yet: the summary and highlights wait for it.")
+        build_notes(session_dir)
+        return session_dir / "notes_final.md"
     claude_ok = ask is not llm.ask or llm.available()
     if claude_ok:
         try:

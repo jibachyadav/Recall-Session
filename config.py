@@ -124,5 +124,6 @@ LARGE_MODELS = {"large-v3-turbo", "large-v3", "large-v2", "medium"}
 LARGE_MODEL_BATCH_SIZE = 4
 LARGE_MODEL_BEAM_SIZE = 1
 # Rough time the after-class pass takes, as a multiple of the recording length (measured on this laptop), used to
-# tell the user how long to expect. Nepali = big model + the offline English pass.
-SLOW_PASS_FACTOR = {"ne": 0.45, "hi": 0.3}
+# tell the user how long to expect (the original-language transcript only; the English version is optional).
+SLOW_PASS_FACTOR = {"ne": 0.3, "hi": 0.15}
+OFFLINE_ENGLISH_FACTOR = 0.12     # making the rough offline English afterwards (measured: 21 s for 178 s of Nepali)

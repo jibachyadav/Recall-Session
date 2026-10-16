@@ -13,9 +13,10 @@ from tkinter.scrolledtext import ScrolledText
 
 import config
 from src import dashboard, llm, quiet, theme
-from src.theme import ACCENT, DANGER, DARK_TEXT, FONT, HIGHLIGHT_FLAG, HIGHLIGHT_KEY, INK, MUTED, SURFACE, mix, render_markdown
+from src.theme import (ACCENT, DANGER, DARK_TEXT, FONT, HIGHLIGHT_FLAG, HIGHLIGHT_KEY, INK, MUTED, SURFACE, SURFACE_HI, mix,
+                       render_markdown)
 from src.language import save_settings
-from src import auth, documents, filechooser, osdep, settings, translate
+from src import auth, documents, filechooser, osdep, settings, transcribe, translate
 from src.auth_ui import AuthFlow
 from src.build_notes import process_session
 from src.hotkey_logger import FlagLogger, fmt
@@ -499,8 +500,9 @@ class App:
             tk.Label(key, text=label, fg=MUTED, font=(FONT, 9)).pack(side="left", padx=(4, 16))
         info = json.loads(meta.read_text()) if meta.exists() else {}
         language = info.get("spoken_language", "en")
-        if language != "en" and info.get("english_source") == "whisper":
-            self._rough_english_bar(f, session, language)
+        source = info.get("english_source")
+        if language != "en" and source in ("whisper", "none"):
+            self._rough_english_bar(f, session, language, source)
         tabs = ttk.Notebook(f)
         tabs.pack(fill="both", expand=True, padx=12, pady=(0, 12))
 
@@ -520,7 +522,9 @@ class App:
         summary = session / "summary.md"
         render_markdown(add_tab("Summary", ""),
                         summary.read_text() if summary.exists() else
-                        "No summary for this class. The full transcript is in the next tab.")
+                        ("There is no summary yet: it needs an English version of the speech.\n\n"
+                         "Use the buttons above to make one." if source == "none" else
+                         "No summary for this class. The full transcript is in the next tab."))
         log = session / "confusion_log.json"
         flags = json.loads(log.read_text()) if log.exists() else []
         tr = session / "transcript_final.json"
@@ -535,39 +539,48 @@ class App:
                 or "Nothing was flagged.")
         self._show(f, self._center(860, 680))
 
-    def _rough_english_bar(self, parent, session, language):
-        """A warning above the transcript: the English was made offline and may be wrong. Offers a better one."""
+    def _rough_english_bar(self, parent, session, language, source):
+        """A bar above the transcript. source "none": no English yet, make it with Claude or offline.
+        source "whisper": the English was made offline and can be wrong; offer a better one."""
         name = config.LANGUAGE_NAMES.get(language, language)
         bar = tk.Frame(parent, bg=mix(SURFACE, "#ffb454", 0.14), highlightthickness=1,
                        highlightbackground=mix(SURFACE, "#ffb454", 0.5))
         bar.pack(fill="x", padx=12, pady=(0, 10))
-        tk.Label(bar, text=f"The English text was made offline from {name} speech and can be wrong"
-                           + (", sometimes very wrong." if language == "ne" else "."),
-                 font=(FONT, 10, "bold"), bg=bar["bg"], fg=INK, anchor="w").pack(side="left", padx=12, pady=8)
+        if source == "none":
+            text = f"This {name} recording has no English version yet. The text below is in {name}."
+        else:
+            text = (f"The English text was made offline from {name} speech and can be wrong"
+                    + (", sometimes very wrong." if language == "ne" else "."))
+        tk.Label(bar, text=text, font=(FONT, 10, "bold"), bg=bar["bg"], fg=INK, anchor="w").pack(side="left", padx=12, pady=8)
         note = tk.Label(bar, text="", font=(FONT, 9), bg=bar["bg"], fg=MUTED)
-        button = tk.Button(bar, text="Improve with Claude", font=(FONT, 10, "bold"), padx=12, pady=4,
-                           bg=ACCENT["live"], fg=DARK_TEXT)
-        button.pack(side="right", padx=10, pady=6)
+        claude_button = tk.Button(bar, text="Translate with Claude" if source == "none" else "Improve with Claude",
+                                  font=(FONT, 10, "bold"), padx=12, pady=4, bg=ACCENT["live"], fg=DARK_TEXT)
+        claude_button.pack(side="right", padx=(4, 10), pady=6)
+        offline_button = None
+        if source == "none":
+            offline_button = tk.Button(bar, text="Rough English (offline)", font=(FONT, 10), padx=12, pady=4,
+                                       bg=SURFACE_HI, fg=INK)
+            offline_button.pack(side="right", padx=4, pady=6)
         note.pack(side="right", padx=4)
+        buttons = [b for b in (claude_button, offline_button) if b]
 
-        def improve():
-            if not settings.has_key():
-                return messagebox.showinfo("Add a Claude key first",
-                                           "A better English version needs a Claude API key.\n\n"
-                                           "Open Account, then AI features, paste your key and press Save key.")
-            button.config(state="disabled", text="Translating...")
-            note.config(text="This can take a minute")
+        def run(work, busy_text, busy_button, normal_text):
+            """Do `work` in the background with all buttons off; reopen the result when it finishes."""
+            for b in buttons:
+                b.config(state="disabled")
+            busy_button.config(text=busy_text)
             result = queue.Queue()
 
-            def work():
+            def target():
                 try:
-                    translate.retranslate_session(session)
-                    process_session(session, log=lambda m: None)         # rebuild summary, highlights and notes
+                    work()
+                    process_session(session, log=lambda m: None)          # rebuild summary, highlights and notes
                     result.put(None)
                 except Exception as e:
-                    result.put(str(e) if isinstance(e, translate.TranslateError) else f"Something went wrong ({type(e).__name__}).")
+                    result.put(str(e) if isinstance(e, (translate.TranslateError, ValueError))
+                               else f"Something went wrong ({type(e).__name__}).")
 
-            threading.Thread(target=work, daemon=True).start()
+            threading.Thread(target=target, daemon=True).start()
 
             def check():
                 if not bar.winfo_exists():
@@ -578,13 +591,34 @@ class App:
                     return bar.after(300, check)
                 if problem is None:
                     return self.show_result(session)
-                button.config(state="normal", text="Improve with Claude")
+                for b in buttons:
+                    b.config(state="normal")
+                busy_button.config(text=normal_text)
                 note.config(text="")
-                messagebox.showinfo("Couldn't improve the English", f"{problem}\n\nThe offline English is unchanged.")
+                messagebox.showinfo("Couldn't make the English", f"{problem}\n\nNothing was changed.")
 
             check()
 
-        button.config(command=improve)
+        def improve():
+            if not settings.has_key():
+                return messagebox.showinfo("Add a Claude key first",
+                                           "A better English version needs a Claude API key.\n\n"
+                                           "Open Account, then AI features, paste your key and press Save key.")
+            note.config(text="This can take a minute")
+            run(lambda: translate.retranslate_session(session), "Translating...", claude_button, claude_button.cget("text"))
+
+        def offline():
+            import wave
+            try:
+                with wave.open(str(session / "recording.wav")) as w:
+                    note.config(text=transcribe.offline_english_message(w.getnframes() / w.getframerate()))
+            except Exception:
+                note.config(text="This can take a few minutes")
+            run(lambda: transcribe.make_offline_english(session), "Working...", offline_button, "Rough English (offline)")
+
+        if offline_button:
+            offline_button.config(command=offline)
+        claude_button.config(command=improve)
 
     def run(self):
         self.root.mainloop()
