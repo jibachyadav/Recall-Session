@@ -10,3 +10,6 @@ migrated-backup/
 .gnome_settings_backup.json
 *.wav
 .DS_Store
+dist-packages/
+build-linux/
+build-windows/

@@ -107,3 +107,32 @@ def call_detection_supported():
 def audio_recording_supported():
     """Can the app capture the sound of calls and videos? (Linux for now; the Windows version is not built yet.)"""
     return IS_LINUX
+
+
+def ffmpeg_path():
+    """The ffmpeg program: the copy shipped with the installed app if there is one, else the one on this computer."""
+    exe = "ffmpeg.exe" if IS_WINDOWS else "ffmpeg"
+    for folder in (config.APP_DIR, config.APP_DIR.parent, Path(sys.executable).parent):
+        if (folder / exe).exists():
+            return str(folder / exe)
+    return shutil.which("ffmpeg") or "ffmpeg"
+
+
+def missing_tools():
+    """Programs the app needs that are not installed, as (name, how to get it). Empty when all is well."""
+    problems = []
+    if not (shutil.which("ffmpeg") or Path(ffmpeg_path()).is_file()):
+        problems.append(("ffmpeg", "sudo apt install ffmpeg" if IS_LINUX else "reinstall Recall-Session"))
+    if IS_LINUX and not any(shutil.which(t) for t in ("gnome-screenshot", "grim", "scrot")):
+        problems.append(("gnome-screenshot (for flag screenshots)", "sudo apt install gnome-screenshot"))
+    if IS_LINUX and not shutil.which("pw-dump"):
+        problems.append(("pipewire-bin (to detect online classes)", "sudo apt install pipewire-bin"))
+    return problems
+
+
+def hidden_window():
+    """Extra subprocess arguments so helper programs don't flash a console window on Windows (nothing on Linux)."""
+    if IS_WINDOWS:
+        import subprocess as sp
+        return {"creationflags": sp.CREATE_NO_WINDOW}
+    return {}

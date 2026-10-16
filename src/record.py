@@ -9,6 +9,7 @@ import time
 from pathlib import Path
 
 import config
+from src import osdep
 
 BYTES_PER_SECOND = 16000 * 2  # 16 kHz, 16-bit mono
 
@@ -25,7 +26,7 @@ class Recorder:
 
     def start(self):
         self.out_path.parent.mkdir(parents=True, exist_ok=True)
-        cmd = ["ffmpeg", "-y", "-loglevel", "error"]
+        cmd = [osdep.ffmpeg_path(), "-y", "-loglevel", "error"]
         for src in self.sources:
             cmd += ["-f", "pulse", "-i", src]
         wav = ["-ac", "1", "-ar", "16000", str(self.out_path)]

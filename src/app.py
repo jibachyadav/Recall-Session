@@ -60,6 +60,14 @@ class App:
         self.auth_flow = AuthFlow(self, self.signed_in)
         self.dash_state = {"open": None}  # which category's previous work is expanded
         self.start_up()
+        self.root.after(800, self._warn_missing_tools)
+
+    def _warn_missing_tools(self):
+        problems = osdep.missing_tools()
+        if problems:
+            messagebox.showwarning("Something is missing", "Recall-Session needs a few more programs:\n\n" + "\n".join(
+                f"  - {name}:  {fix}" for name, fix in problems) + "\n\nYou can still look at old sessions, but "
+                "recording may not work until they are installed.")
 
     # ---- accounts -----------------------------------------------------------
     def start_up(self):
