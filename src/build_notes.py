@@ -83,9 +83,19 @@ def process_session(session_dir, ask=llm.ask, log=print):
         log("Using the live transcript (instant)...")
         (session_dir / "transcript_final.json").write_text(live.read_text())
     if not (session_dir / "transcript_final.json").exists():
-        from src.transcribe import transcribe_session
+        from src.transcribe import estimate_message, transcribe_session
 
         log("Transcribing...")
+        spoken = info.get("spoken", "auto")
+        if spoken in config.SLOW_PASS_FACTOR:
+            import wave
+            try:
+                with wave.open(str(session_dir / "recording.wav")) as w:
+                    note = estimate_message(spoken, w.getnframes() / w.getframerate())
+                if note:
+                    log(note)
+            except Exception:
+                pass
         transcribe_session(session_dir)
     claude_ok = ask is not llm.ask or llm.available()
     if claude_ok:

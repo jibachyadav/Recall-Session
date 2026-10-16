@@ -36,8 +36,11 @@ def model_for(language):
 def transcribe(audio_path, task="transcribe", language=None, terms="", model=None):
     """Return (segments, spoken_language). task="translate" gives English text for any language."""
     # without_timestamps=False keeps sentence-sized segments (needed for flag highlights)
+    big = (model or config.WHISPER_MODEL) in config.LARGE_MODELS
     segments, info = get_batched(model).transcribe(str(audio_path), task=task, language=language,
-                                              batch_size=config.WHISPER_BATCH_SIZE, without_timestamps=False,
+                                              batch_size=config.LARGE_MODEL_BATCH_SIZE if big else config.WHISPER_BATCH_SIZE,
+                                              **({"beam_size": config.LARGE_MODEL_BEAM_SIZE} if big else {}),
+                                              without_timestamps=False,
                                               initial_prompt=f"Vocabulary: {terms}." if terms.strip() else None)
     return ([{"start": round(s.start, 2), "end": round(s.end, 2), "text": s.text.strip()}
              for s in segments], info.language)
@@ -73,3 +76,14 @@ def transcribe_session(session_dir):
     (session_dir / "transcript_final.json").write_text(json.dumps(segments, indent=2))
     save_settings(session_dir, spoken_language=spoken, english_source=english_source)
     return segments
+
+
+def estimate_message(language, audio_seconds):
+    """A sentence telling the user how long the after-class pass will take, or None for quick cases."""
+    factor = config.SLOW_PASS_FACTOR.get(language)
+    if not factor or audio_seconds < 60:
+        return None
+    minutes = max(1, round(audio_seconds * factor / 60))
+    name = config.LANGUAGE_NAMES.get(language, language)
+    return (f"Transcribing {name} speech: about {minutes} minute{'s' if minutes != 1 else ''} for this recording. "
+            "This is the slow step; closing other programs makes it faster.")

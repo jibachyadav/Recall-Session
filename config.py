@@ -117,3 +117,12 @@ LANGUAGE_NAMES = {"en": "English", "ne": "Nepali", "hi": "Hindi"}
 # Final (after-class) transcription model per language. The default `small` is unusable for Nepali (about
 # 100% word errors in our test) so Nepali uses the big model (41%, about half real time on this laptop).
 FINAL_MODEL_FOR = {"ne": "large-v3-turbo"}
+
+# Big models (Nepali): measured on a 3-minute Nepali recording, batch 4 + quick search was 15% faster and used 22% less
+# memory than batch 8 + careful search, with the same accuracy. Smaller models keep WHISPER_BATCH_SIZE and the default search.
+LARGE_MODELS = {"large-v3-turbo", "large-v3", "large-v2", "medium"}
+LARGE_MODEL_BATCH_SIZE = 4
+LARGE_MODEL_BEAM_SIZE = 1
+# Rough time the after-class pass takes, as a multiple of the recording length (measured on this laptop), used to
+# tell the user how long to expect. Nepali = big model + the offline English pass.
+SLOW_PASS_FACTOR = {"ne": 0.45, "hi": 0.3}
