@@ -6,6 +6,18 @@ clear notes. It runs on your own computer: speech recognition is local, and the 
 > **Status:** works on Linux (Ubuntu / GNOME / Wayland) and installs from a `.deb`, AppImage or tarball. A Windows version
 > is written and builds an installer through GitHub Actions, but it has **not been tested on a real Windows computer yet**.
 
+## Download
+
+**[Get the latest version from the Releases page](https://github.com/jibachyadav/Recall-Session/releases/latest)**
+
+| Your computer | Download |
+|---|---|
+| Windows | [Recall-Session-0.1.0-Setup.exe](https://github.com/jibachyadav/Recall-Session/releases/download/v0.1.0/Recall-Session-0.1.0-Setup.exe) (beta, not tested on many PCs yet) |
+| Ubuntu / Debian | [recall-session_0.1.0_amd64.deb](https://github.com/jibachyadav/Recall-Session/releases/download/v0.1.0/recall-session_0.1.0_amd64.deb) |
+| Any Linux | [Recall-Session-0.1.0-x86_64.AppImage](https://github.com/jibachyadav/Recall-Session/releases/download/v0.1.0/Recall-Session-0.1.0-x86_64.AppImage) |
+
+Install steps are under [Install](#install) below.
+
 ## What it does
 
 Start in one of three ways from the home screen:
