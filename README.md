@@ -18,6 +18,22 @@ clear notes. It runs on your own computer: speech recognition is local, and the 
 
 Install steps are under [Install](#install) below.
 
+## Screenshots
+
+*Sample data, made up for these pictures.*
+
+**Your library of classes, videos and documents**
+
+![Home screen](docs/screenshots/home.png)
+
+**A summary written after the class**
+
+![Summary](docs/screenshots/summary.png)
+
+**The full transcript: yellow is where you pressed Flag, green is what the teacher stressed as important**
+
+![Transcript with highlights](docs/screenshots/transcript.png)
+
 ## What it does
 
 Start in one of three ways from the home screen:
