@@ -48,6 +48,11 @@ class App:
         self.root = tk.Tk(className="Recall-Session")
         theme.apply(self.root)
         self.root.title("Recall-Session")
+        try:
+            self._icon = tk.PhotoImage(file=str(config.APP_DIR / "assets" / "icon.png"))   # kept so Tk doesn't drop it
+            self.root.iconphoto(True, self._icon)
+        except tk.TclError:
+            pass
         self.frame = None
         self.rec = None
         quiet.restore()  # if an earlier run crashed while muted, put the sounds back
