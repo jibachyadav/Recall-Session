@@ -40,6 +40,27 @@ class ScrollColumn(tk.Frame):
             w.bind("<Button-5>", lambda e: self.canvas.yview_scroll(2, "units"))
 
 
+def make_starter(parent, kind, label, hint, command):
+    """A plain, always-visible button for starting something: what it does, and what it is for."""
+    box = tk.Frame(parent, bg=SURFACE, highlightthickness=1, highlightbackground=BORDER, cursor="hand2")
+    top = tk.Frame(box, bg=SURFACE)
+    top.pack(fill="x", padx=14, pady=(11, 0))
+    tk.Label(top, text="●", font=f(8), bg=SURFACE, fg=ACCENT[kind]).pack(side="left")
+    tk.Label(top, text="  " + label, font=f(11, "bold"), bg=SURFACE, fg=INK).pack(side="left")
+    tk.Label(box, text=hint, font=f(9), bg=SURFACE, fg=MUTED, anchor="w", justify="left", wraplength=250
+             ).pack(fill="x", padx=14, pady=(2, 11))
+
+    def paint(color, edge):
+        box.config(highlightbackground=edge)
+        for w in [box, top] + list(top.winfo_children()) + [c for c in box.winfo_children() if c is not top]:
+            w.config(bg=color)
+
+    _bind_all(box, "<Button-1>", lambda e: command())
+    _bind_all(box, "<Enter>", lambda e: paint(SURFACE_HI, ACCENT[kind]))
+    _bind_all(box, "<Leave>", lambda e: paint(SURFACE, BORDER))
+    return box
+
+
 def fit(text, font, pixels):
     """Cut `text` with an ellipsis so that it is at most `pixels` wide in `font`."""
     measure = tkfont.Font(font=font).measure
@@ -189,20 +210,10 @@ def build(parent, on_start, on_open, on_delete, state, user=None, on_account=Non
     title = tk.Label(top, text="", font=f(20, "bold"), bg=BG, fg=INK)
     title.pack(side="left")
 
-    new_button = tk.Menubutton(top, text="+  New", font=f(11, "bold"), bg=ACCENT["live"], fg=DARK_TEXT, relief="flat",
-                               padx=16, pady=7, activebackground=mix(ACCENT["live"], "#ffffff", 0.2),
-                               activeforeground=DARK_TEXT, cursor="hand2", direction="below")
-    new_menu = tk.Menu(new_button, tearoff=0, bg=SURFACE, fg=INK, activebackground=ACCENT["live"],
-                       activeforeground=DARK_TEXT, relief="flat", font=f(11), bd=0)
-    for kind, text in (("live", "Live session"), ("video", "YouTube video"), ("document", "Document…")):
-        new_menu.add_command(label=text, command=lambda k=kind: start(k))
-    new_button.config(menu=new_menu)
-    new_button.pack(side="right")
-
     query = tk.StringVar()
     search = tk.Entry(top, textvariable=query, font=f(11), width=24, bg=SURFACE, fg=INK, insertbackground=INK,
                       relief="flat", highlightthickness=1, highlightbackground=BORDER, highlightcolor=ACCENT["live"])
-    search.pack(side="right", padx=14, ipady=6)
+    search.pack(side="right", ipady=6)
     placeholder = {"on": False}
 
     def show_placeholder(_e=None):
@@ -220,8 +231,17 @@ def build(parent, on_start, on_open, on_delete, state, user=None, on_account=Non
     search.bind("<FocusIn>", hide_placeholder)
     search.bind("<FocusOut>", show_placeholder)
     show_placeholder()
+    starters = tk.Frame(main, bg=BG)
+    starters.pack(fill="x", padx=32, pady=(18, 0))
+    starters.columnconfigure((0, 1, 2), weight=1, uniform="s")
+    for col, (kind, label, hint) in enumerate((
+            ("live", "Record a live class", "Zoom, Teams or Meet: the teacher and your voice"),
+            ("video", "Record a video", "YouTube or any video playing on this computer"),
+            ("document", "Add a document", "A PDF, Word or text file, to summarize"))):
+        make_starter(starters, kind, label, hint, lambda k=kind: start(k)).grid(
+            row=0, column=col, sticky="nsew", padx=(0 if col == 0 else 6, 0 if col == 2 else 6))
     body = tk.Frame(main, bg=BG)
-    body.pack(fill="both", expand=True, padx=32, pady=(16, 20))
+    body.pack(fill="both", expand=True, padx=32, pady=(18, 20))
 
     def current_items():
         text = "" if placeholder["on"] else query.get().strip().lower()
@@ -241,7 +261,7 @@ def build(parent, on_start, on_open, on_delete, state, user=None, on_account=Non
             tk.Label(empty, text=f"Nothing matches \"{query.get().strip()}\"." if searching else
                      "Nothing here yet.", font=f(12, "bold"), bg=BG, fg=INK).pack(anchor="w")
             if not searching:
-                tk.Label(empty, text="Use  + New  to record a live class or a video, or to add a document.",
+                tk.Label(empty, text="Use one of the three buttons above to record a class, record a video, or add a document.",
                          font=f(11), bg=BG, fg=MUTED).pack(anchor="w", pady=(4, 0))
             return
 
