@@ -1,19 +1,20 @@
-"""The home dashboard: start a live class, a video or a document, and browse previous work."""
+"""The home screen: a sidebar with your library, and a list of everything you've recorded or added."""
 import tkinter as tk
-from datetime import datetime
+from tkinter import font as tkfont
 
 import config
 from src.sessions import fmt_duration, list_sessions
-from src.theme import (ACCENT, BG, BORDER, DANGER, DARK_TEXT, INK, MUTED, SURFACE, SURFACE_HI, f, mix,
-                       rounded_rect)
+from src.theme import ACCENT, BG, BORDER, DANGER, DARK_TEXT, INK, MUTED, SIDEBAR, SURFACE, SURFACE_HI, f, mix
 
-CARD_H = 250
-HEIGHT_START = 500      # window height when the app opens (it then fits itself to the cards)
-HEIGHT_OPEN = 800       # window height while a list is open
+HEIGHT_START = 700      # window height when the app opens
+WIDTH_START = 1200      # ...and its width
+TITLE_PIXELS = 330      # a longer title is cut with "..." so it never runs into the next column
+KINDS = [("live", "Live sessions"), ("video", "Videos"), ("document", "Documents")]
+LABEL = {"live": "Live session", "video": "Video", "document": "Document"}
 
 
 def _kind(session):
-    """Older sessions saved as \"other\" now belong with the YouTube card."""
+    """Older sessions saved as \"other\" now belong with the videos."""
     return "video" if session["type"] == "other" else session["type"]
 
 
@@ -21,62 +22,6 @@ def _bind_all(widget, event, handler):
     widget.bind(event, handler)
     for child in widget.winfo_children():
         _bind_all(child, event, handler)
-
-
-def _icon(canvas, kind, cx, cy, color, size=26):
-    """Draw the glyph for a card (a record ring, a play triangle, or a page)."""
-    s = size
-    if kind == "video":
-        canvas.create_polygon(cx - s * 0.32, cy - s * 0.45, cx - s * 0.32, cy + s * 0.45, cx + s * 0.5, cy,
-                              fill=color, outline="")
-    elif kind == "document":
-        canvas.create_polygon(cx - s * 0.4, cy - s * 0.52, cx + s * 0.1, cy - s * 0.52, cx + s * 0.4, cy - s * 0.22,
-                              cx + s * 0.4, cy + s * 0.52, cx - s * 0.4, cy + s * 0.52, fill=color, outline="")
-        for dy in (-0.05, 0.17, 0.39):
-            canvas.create_line(cx - s * 0.2, cy + s * dy, cx + s * 0.2, cy + s * dy, fill=SURFACE, width=2)
-    else:  # live: a ring with a dot
-        canvas.create_oval(cx - s * 0.5, cy - s * 0.5, cx + s * 0.5, cy + s * 0.5, outline=color, width=3)
-        canvas.create_oval(cx - s * 0.2, cy - s * 0.2, cx + s * 0.2, cy + s * 0.2, fill=color, outline="")
-
-
-class StartCard(tk.Canvas):
-    """A big rounded card. It glows in its colour when the mouse is over it, and starts the session on click."""
-
-    def __init__(self, parent, kind, title, text, on_click):
-        super().__init__(parent, height=CARD_H, bg=BG, highlightthickness=0, cursor="hand2")
-        self.kind, self.title, self.text, self.on_click = kind, title, text, on_click
-        self.color = ACCENT[kind]
-        self.hover = False
-        self.bind("<Configure>", lambda e: self.draw())
-        self.bind("<Enter>", lambda e: self._set_hover(True))
-        self.bind("<Leave>", lambda e: self._set_hover(False))
-        self.bind("<Button-1>", lambda e: self.on_click())
-
-    def _set_hover(self, on):
-        self.hover = on
-        self.draw()
-
-    def draw(self):
-        self.delete("all")
-        w, h, c, hov = self.winfo_width(), CARD_H, self.color, self.hover
-        if w < 50:
-            return
-        if hov:  # soft glow: a slightly bigger, faint rounded rectangle behind the card
-            rounded_rect(self, 1, 1, w - 1, h - 1, 24, fill=mix(BG, c, 0.22), outline="")
-        rounded_rect(self, 4, 4, w - 4, h - 4, 20, fill=SURFACE_HI if hov else SURFACE,
-                     outline=c if hov else BORDER, width=2 if hov else 1)
-        # icon in a tinted circle
-        cx, cy = 52, 56
-        self.create_oval(cx - 26, cy - 26, cx + 26, cy + 26, fill=mix(SURFACE, c, 0.2), outline="")
-        _icon(self, self.kind, cx, cy, c)
-        self.create_text(28, 112, text=self.title, anchor="w", fill=INK, font=f(16, "bold"))
-        self.create_text(28, 138, text=self.text, anchor="nw", fill=MUTED, font=f(10), width=w - 56)
-        label = "Choose a file" if self.kind == "document" else "Start"
-        pill_w = 112 if self.kind == "document" else 84
-        x0, y0 = 28, h - 56
-        rounded_rect(self, x0, y0, x0 + pill_w, y0 + 34, 17, fill=c if hov else mix(SURFACE, c, 0.18), outline="")
-        self.create_text(x0 + pill_w / 2, y0 + 17, text=f"{label}  →", fill=DARK_TEXT if hov else c,
-                         font=f(11, "bold"))
 
 
 class ScrollColumn(tk.Frame):
@@ -95,41 +40,14 @@ class ScrollColumn(tk.Frame):
             w.bind("<Button-5>", lambda e: self.canvas.yview_scroll(2, "units"))
 
 
-def session_row(parent, s, on_open, on_delete, selected, on_select):
-    color = ACCENT.get(s["type"], ACCENT["live"])
-    row = tk.Frame(parent, bg=SURFACE, highlightthickness=1, highlightbackground=BORDER, cursor="hand2")
-    row.pack(fill="x", pady=4)
-    tk.Frame(row, bg=color, width=4).pack(side="left", fill="y")
-    check = tk.Checkbutton(row, variable=selected, command=on_select, bg=SURFACE, activebackground=SURFACE,
-                           selectcolor=SURFACE_HI, highlightthickness=0, bd=0, cursor="arrow")
-    check.pack(side="left", padx=(10, 0))
-    body = tk.Frame(row, bg=SURFACE)
-    body.pack(side="left", fill="both", expand=True, padx=12, pady=9)
-    tk.Label(body, text=s["title"], font=f(11, "bold"), bg=SURFACE, fg=INK, anchor="w").pack(fill="x")
-    detail = f"{s.get('words', 0):,} words" if s["type"] == "document" else fmt_duration(s["duration"])
-    meta = f"{s['when']:%b %d, %I:%M %p}  ·  {detail}"
-    if s["flags"]:
-        meta += f"  ·  {s['flags']} flag{'s' if s['flags'] != 1 else ''}"
-    tk.Label(body, text=meta, font=f(9), bg=SURFACE, fg=MUTED, anchor="w").pack(fill="x")
-
-    delete = tk.Label(row, text="✕", font=f(11), bg=SURFACE, fg=MUTED, cursor="hand2", padx=12)
-    delete.pack(side="right", fill="y")
-    delete.bind("<Enter>", lambda e: delete.config(fg=DANGER))
-    delete.bind("<Leave>", lambda e: delete.config(fg=MUTED))
-    delete.bind("<Button-1>", lambda e: on_delete([s]))
-    tk.Label(row, text="Open  ›" if s["done"] else "Unfinished", font=f(9, "bold"), bg=SURFACE,
-             fg=color if s["done"] else MUTED).pack(side="right", padx=4)
-
-    def bind_open(w):
-        if w is delete or w is check:
-            return
-        w.bind("<Button-1>", lambda e: on_open(s["path"]))
-        w.bind("<Enter>", lambda e: row.config(highlightbackground=color))
-        w.bind("<Leave>", lambda e: row.config(highlightbackground=BORDER))
-        for child in w.winfo_children():
-            bind_open(child)
-
-    bind_open(row)
+def fit(text, font, pixels):
+    """Cut `text` with an ellipsis so that it is at most `pixels` wide in `font`."""
+    measure = tkfont.Font(font=font).measure
+    if measure(text) <= pixels:
+        return text
+    while text and measure(text + "…") > pixels:
+        text = text[:-1]
+    return text.rstrip() + "…"
 
 
 def ask_name(parent, kind):
@@ -138,7 +56,7 @@ def ask_name(parent, kind):
     Returns (name, spoken); name is None if cancelled; spoken is "auto", "en", "ne" or "hi"."""
     default = {"live": "Live session", "video": "YouTube video"}[kind]
     heading = {"live": "Name this live class", "video": "Name this video"}[kind]
-    color = ACCENT[kind]
+    color = ACCENT["live"]
     win = tk.Toplevel(parent)
     win.title("New session")
     win.configure(bg=SURFACE)
@@ -192,52 +110,12 @@ def ask_name(parent, kind):
     return result["name"], result["spoken"]
 
 
-def _greeting():
-    hour = datetime.now().hour
-    return "Good morning" if hour < 12 else "Good afternoon" if hour < 18 else "Good evening"
-
-
-def _logo(parent):
-    """The app logo: a rounded tile with a recording ring."""
-    c = tk.Canvas(parent, width=52, height=52, bg=BG, highlightthickness=0)
-    rounded_rect(c, 2, 2, 50, 50, 15, fill=mix(ACCENT["live"], ACCENT["video"], 0.0), outline="")
-    rounded_rect(c, 2, 26, 50, 50, 15, fill=mix(ACCENT["live"], ACCENT["video"], 0.45), outline="")
-    c.create_oval(14, 14, 38, 38, outline=DARK_TEXT, width=4)
-    c.create_oval(22, 22, 30, 30, fill=DARK_TEXT, outline="")
-    return c
-
-
 def build(parent, on_start, on_open, on_delete, state, user=None, on_account=None, on_logout=None):
-    """Build the dashboard frame. on_start(kind, title, spoken), on_open(path), on_delete(list_of_sessions).
-    `state` ({"open": kind or None}) is kept by the caller so the open list survives a redraw."""
+    """Build the home screen. on_start(kind, title, spoken), on_open(path), on_delete(list_of_sessions).
+
+    `state["open"]` (None or a kind) is the sidebar filter; the caller keeps it so it survives a redraw."""
     root = tk.Frame(parent, bg=BG)
     sessions = list_sessions()
-
-    head = tk.Frame(root, bg=BG)
-    head.pack(fill="x", padx=40, pady=(30, 0))
-    _logo(head).pack(side="left")
-    titles = tk.Frame(head, bg=BG)
-    titles.pack(side="left", padx=16)
-    tk.Label(titles, text="Recall-Session", font=f(26, "bold"), bg=BG, fg=INK).pack(anchor="w")
-    tk.Label(titles, text="Capture it. Understand it. Remember it.", font=f(11), bg=BG, fg=MUTED).pack(anchor="w")
-    right = tk.Frame(head, bg=BG)
-    right.pack(side="right")
-    name = f", {user['name'].split()[0]}" if user else ""
-    tk.Label(right, text=f"{_greeting()}{name}", font=f(13, "bold"), bg=BG, fg=INK).pack(anchor="e")
-    tk.Label(right, text=f"{datetime.now():%A, %B %d}", font=f(10), bg=BG, fg=MUTED).pack(anchor="e")
-    if user:
-        buttons = tk.Frame(right, bg=BG)
-        buttons.pack(anchor="e", pady=(8, 0))
-        for text, command in (("Account", on_account), ("Log out", on_logout)):
-            b = tk.Label(buttons, text=text, font=f(10, "bold"), bg=SURFACE, fg=INK, padx=12, pady=4, cursor="hand2")
-            b.pack(side="left", padx=(6, 0))
-            b.bind("<Button-1>", lambda e, c=command: c())
-            b.bind("<Enter>", lambda e, b=b: b.config(bg=SURFACE_HI))
-            b.bind("<Leave>", lambda e, b=b: b.config(bg=SURFACE))
-
-    main = tk.Frame(root, bg=BG)          # heading + cards: centred in the free space while no list is open
-    tk.Label(main, text="What would you like to do?", font=f(12, "bold"), bg=BG, fg=MUTED, anchor="w"
-             ).pack(fill="x", padx=40, pady=(0, 10))
 
     def start(kind):
         if kind == "document":      # the file's own name is the title: no name window
@@ -246,95 +124,208 @@ def build(parent, on_start, on_open, on_delete, state, user=None, on_account=Non
         if name:
             on_start(kind, name, spoken)
 
-    specs = [("live", "Live session", "An online class on Zoom, Teams or Meet. Records the teacher and your own voice.", "live sessions"),
-             ("video", "YouTube video", "A video or recorded lecture playing on this computer. Records its sound.", "videos"),
-             ("document", "Document", "Click to choose a PDF, Word or text file from your computer. Reads it and writes a summary.", "documents")]
-    cols = tk.Frame(main, bg=BG)
-    cols.pack(fill="x", padx=40)
-    cols.columnconfigure((0, 1, 2), weight=1, uniform="c")
-    area = tk.Frame(root, bg=BG)          # shows the previous work of ONE category at a time
-    toggles = {}
+    # ------------------------------------------------------------------ sidebar
+    side = tk.Frame(root, bg=SIDEBAR, width=216)
+    side.pack(side="left", fill="y")
+    side.pack_propagate(False)
+    tk.Label(side, text="Recall-Session", font=f(14, "bold"), bg=SIDEBAR, fg=INK, anchor="w"
+             ).pack(fill="x", padx=20, pady=(24, 20))
+    nav = tk.Frame(side, bg=SIDEBAR)
+    nav.pack(fill="x")
+    nav_rows = {}
 
-    def layout(open_):
-        """Cards always stay at the top. The window is just tall enough for them, and grows when a list opens."""
-        main.pack_forget()
-        area.pack_forget()
-        main.pack(fill="x", pady=(24, 0))
-        if open_:
-            area.pack(fill="both", expand=True, padx=40, pady=(8, 26))
-        win = root.winfo_toplevel()
-        if win.state() == "normal" and win.winfo_ismapped() and win.winfo_width() > 100:   # (and not before it is shown)
-            win.update_idletasks()
-            if open_:
-                want = HEIGHT_OPEN
-            else:                                       # snug: just below the "Previous" bars
-                bottom = max((b.winfo_y() + b.winfo_height() for b in toggles.values()), default=0)
-                want = main.winfo_y() + cols.winfo_y() + bottom + 30
-            win.geometry(f"{win.winfo_width()}x{want}")
+    def set_filter(key):
+        state["open"] = key
+        render()
+
+    for key, text in [(None, "All")] + KINDS:
+        count = len(sessions) if key is None else sum(1 for s in sessions if _kind(s) == key)
+        row = tk.Frame(nav, bg=SIDEBAR, cursor="hand2")
+        row.pack(fill="x")
+        bar = tk.Frame(row, bg=SIDEBAR, width=3)
+        bar.pack(side="left", fill="y")
+        dot = tk.Label(row, text="●" if key else " ", font=f(8), bg=SIDEBAR, fg=ACCENT.get(key, MUTED))
+        dot.pack(side="left", padx=(14, 8), pady=8)
+        name_label = tk.Label(row, text=text, font=f(11), bg=SIDEBAR, fg=MUTED, anchor="w")
+        name_label.pack(side="left")
+        count_label = tk.Label(row, text=str(count), font=f(10), bg=SIDEBAR, fg=MUTED)
+        count_label.pack(side="right", padx=18)
+        nav_rows[key] = (row, bar, dot, name_label, count_label)
+        _bind_all(row, "<Button-1>", lambda e, k=key: set_filter(k))
+        _bind_all(row, "<Enter>", lambda e, k=key: nav_rows[k][0].config(bg=SURFACE_HI) if state["open"] != k else None)
+        _bind_all(row, "<Leave>", lambda e, k=key: render_nav())
+
+    def render_nav():
+        for key, (row, bar, dot, name_label, count_label) in nav_rows.items():
+            active = state["open"] == key
+            bg = SURFACE_HI if active else SIDEBAR
+            for w in (row, dot, name_label, count_label):
+                w.config(bg=bg)
+            bar.config(bg=ACCENT["live"] if active else SIDEBAR)
+            name_label.config(fg=INK if active else MUTED, font=f(11, "bold") if active else f(11))
+
+    if user:
+        foot = tk.Frame(side, bg=SIDEBAR)
+        foot.pack(side="bottom", fill="x", pady=(0, 18))
+        tk.Frame(foot, bg=BORDER, height=1).pack(fill="x", padx=18, pady=(0, 14))
+        tk.Label(foot, text=user["name"], font=f(11, "bold"), bg=SIDEBAR, fg=INK, anchor="w"
+                 ).pack(fill="x", padx=20)
+        tk.Label(foot, text=f"@{user['username']}", font=f(9), bg=SIDEBAR, fg=MUTED, anchor="w"
+                 ).pack(fill="x", padx=20, pady=(0, 8))
+        links = tk.Frame(foot, bg=SIDEBAR)
+        links.pack(fill="x", padx=20)
+        for text, command in (("Account", on_account), ("Log out", on_logout)):
+            link = tk.Label(links, text=text, font=f(10), bg=SIDEBAR, fg=MUTED, cursor="hand2")
+            link.pack(side="left", padx=(0, 16))
+            link.bind("<Button-1>", lambda e, c=command: c())
+            link.bind("<Enter>", lambda e, w=link: w.config(fg=INK))
+            link.bind("<Leave>", lambda e, w=link: w.config(fg=MUTED))
+
+    # --------------------------------------------------------------------- main
+    main = tk.Frame(root, bg=BG)
+    main.pack(side="left", fill="both", expand=True)
+    top = tk.Frame(main, bg=BG)
+    top.pack(fill="x", padx=32, pady=(24, 0))
+    title = tk.Label(top, text="", font=f(20, "bold"), bg=BG, fg=INK)
+    title.pack(side="left")
+
+    new_button = tk.Menubutton(top, text="+  New", font=f(11, "bold"), bg=ACCENT["live"], fg=DARK_TEXT, relief="flat",
+                               padx=16, pady=7, activebackground=mix(ACCENT["live"], "#ffffff", 0.2),
+                               activeforeground=DARK_TEXT, cursor="hand2", direction="below")
+    new_menu = tk.Menu(new_button, tearoff=0, bg=SURFACE, fg=INK, activebackground=ACCENT["live"],
+                       activeforeground=DARK_TEXT, relief="flat", font=f(11), bd=0)
+    for kind, text in (("live", "Live session"), ("video", "YouTube video"), ("document", "Document…")):
+        new_menu.add_command(label=text, command=lambda k=kind: start(k))
+    new_button.config(menu=new_menu)
+    new_button.pack(side="right")
+
+    query = tk.StringVar()
+    search = tk.Entry(top, textvariable=query, font=f(11), width=24, bg=SURFACE, fg=INK, insertbackground=INK,
+                      relief="flat", highlightthickness=1, highlightbackground=BORDER, highlightcolor=ACCENT["live"])
+    search.pack(side="right", padx=14, ipady=6)
+    placeholder = {"on": False}
+
+    def show_placeholder(_e=None):
+        if not search.get():
+            placeholder["on"] = True
+            search.insert(0, "Search")
+            search.config(fg=MUTED)
+
+    def hide_placeholder(_e=None):
+        if placeholder["on"]:
+            placeholder["on"] = False
+            search.delete(0, "end")
+            search.config(fg=INK)
+
+    search.bind("<FocusIn>", hide_placeholder)
+    search.bind("<FocusOut>", show_placeholder)
+    show_placeholder()
+    body = tk.Frame(main, bg=BG)
+    body.pack(fill="both", expand=True, padx=32, pady=(16, 20))
+
+    def current_items():
+        text = "" if placeholder["on"] else query.get().strip().lower()
+        wanted = state["open"]
+        return [s for s in sessions if (wanted is None or _kind(s) == wanted) and text in s["title"].lower()]
 
     def render():
-        for w in area.winfo_children():
+        render_nav()
+        title.config(text=dict([(None, "All")] + KINDS)[state["open"]] if state["open"] else "All sessions")
+        for w in body.winfo_children():
             w.destroy()
-        for kind, btn in toggles.items():
-            active = state["open"] == kind
-            n = sum(1 for x in sessions if _kind(x) == kind)
-            btn.config(text=f"Previous  ({n})  {'▴' if active else '▾'}",
-                       bg=ACCENT[kind] if active else SURFACE, fg=DARK_TEXT if active else ACCENT[kind])
-        kind = state["open"]
-        layout(bool(kind))
-        if not kind:
-            return
-        title = next(sp[3] for sp in specs if sp[0] == kind)
-        items = [x for x in sessions if _kind(x) == kind]
-        top = tk.Frame(area, bg=BG)
-        top.pack(fill="x", pady=(10, 6))
-        tk.Label(top, text=f"Previous {title}", font=f(13, "bold"), bg=BG, fg=ACCENT[kind],
-                 anchor="w").pack(side="left")
-        col = ScrollColumn(area)
+        items = current_items()
         if not items:
-            col.pack(fill="both", expand=True)
-            tk.Label(col.inner, text="Nothing here yet.", font=f(10), bg=BG, fg=MUTED).pack(anchor="w", pady=4)
+            searching = (not placeholder["on"]) and query.get().strip()
+            empty = tk.Frame(body, bg=BG)
+            empty.pack(anchor="w", pady=30)
+            tk.Label(empty, text=f"Nothing matches \"{query.get().strip()}\"." if searching else
+                     "Nothing here yet.", font=f(12, "bold"), bg=BG, fg=INK).pack(anchor="w")
+            if not searching:
+                tk.Label(empty, text="Use  + New  to record a live class or a video, or to add a document.",
+                         font=f(11), bg=BG, fg=MUTED).pack(anchor="w", pady=(4, 0))
             return
 
-        vars_ = [tk.BooleanVar(value=False) for _ in items]
+        selected = [tk.BooleanVar(value=False) for _ in items]
         all_var = tk.BooleanVar(value=False)
-        del_btn = tk.Button(top, text="Delete selected", relief="flat", bg=SURFACE, fg=MUTED,
-                            font=f(10, "bold"), padx=14, pady=4, state="disabled", bd=0,
-                            command=lambda: on_delete([x for x, v in zip(items, vars_) if v.get()]))
-        del_btn.pack(side="right")
+        head = tk.Frame(body, bg=BG)
+        head.pack(fill="x")
+        columns(head)
+        check_all = tk.Checkbutton(head, variable=all_var, bg=BG, selectcolor=SURFACE_HI, activebackground=BG,
+                                   highlightthickness=0, bd=0, cursor="arrow")
+        check_all.grid(row=0, column=0, padx=(8, 0))
+        for col, text in ((1, "NAME"), (2, "TYPE"), (3, "DATE"), (4, "SIZE")):
+            tk.Label(head, text=text, font=f(8, "bold"), bg=BG, fg=MUTED, anchor="w").grid(row=0, column=col, sticky="w")
+        delete = tk.Label(head, text="", font=f(10, "bold"), bg=BG, fg=DANGER, cursor="hand2")
+        delete.grid(row=0, column=5, sticky="e", padx=(0, 8))
+        tk.Frame(body, bg=BORDER, height=1).pack(fill="x", pady=(8, 0))
+        column = ScrollColumn(body)
+        column.pack(fill="both", expand=True)
 
         def refresh():
-            n = sum(v.get() for v in vars_)
-            all_var.set(n == len(vars_))
-            del_btn.config(text=f"Delete selected ({n})" if n else "Delete selected",
-                           state="normal" if n else "disabled",
-                           bg=DANGER if n else SURFACE, fg=DARK_TEXT if n else MUTED,
-                           activebackground=mix(DANGER, "#ffffff", 0.2), activeforeground=DARK_TEXT)
+            n = sum(v.get() for v in selected)
+            all_var.set(n == len(selected))
+            delete.config(text=f"Delete {n}" if n else "")
 
-        def select_all():
-            for v in vars_:
+        def toggle_all():
+            for v in selected:
                 v.set(all_var.get())
             refresh()
 
-        tk.Checkbutton(top, text="Select all", variable=all_var, command=select_all, bg=BG, selectcolor=SURFACE_HI,
-                       activebackground=BG, activeforeground=INK, font=f(10), fg=INK, highlightthickness=0
-                       ).pack(side="right", padx=14)
-        col.pack(fill="both", expand=True)
-        for x, v in zip(items, vars_):
-            session_row(col.inner, x, on_open, on_delete, v, refresh)
+        check_all.config(command=toggle_all)
+        delete.bind("<Button-1>", lambda e: on_delete([s for s, v in zip(items, selected) if v.get()])
+                    if any(v.get() for v in selected) else None)
+        for s, var in zip(items, selected):
+            add_row(column.inner, s, var, refresh)
 
-    def toggle(kind):
-        state["open"] = None if state["open"] == kind else kind
-        render()
+    def columns(frame):
+        """Same column widths for the header and every row, so they line up."""
+        frame.columnconfigure(1, weight=1)
+        for col, width in {0: 44, 2: 116, 3: 160, 4: 140, 5: 90}.items():
+            frame.columnconfigure(col, minsize=width)
 
-    for i, (kind, title, text, _) in enumerate(specs):
-        pad = (0 if i == 0 else 9, 0 if i == 2 else 9)
-        StartCard(cols, kind, title, text, lambda k=kind: start(k)).grid(row=0, column=i, sticky="nsew", padx=pad)
-        btn = tk.Label(cols, font=f(10, "bold"), cursor="hand2", pady=8, bd=0, bg=SURFACE, fg=ACCENT[kind])
-        btn.grid(row=1, column=i, sticky="ew", padx=pad, pady=(12, 0))
-        btn.bind("<Button-1>", lambda e, k=kind: toggle(k))
-        btn.bind("<Enter>", lambda e, b=btn, k=kind: b.config(bg=SURFACE_HI) if state["open"] != k else None)
-        btn.bind("<Leave>", lambda e, b=btn, k=kind: b.config(bg=SURFACE) if state["open"] != k else None)
-        toggles[kind] = btn
+    def add_row(parent_frame, s, var, on_select):
+        kind = _kind(s)
+        row = tk.Frame(parent_frame, bg=BG, cursor="hand2")
+        row.pack(fill="x")
+        columns(row)
+        check = tk.Checkbutton(row, variable=var, command=on_select, bg=BG, selectcolor=SURFACE_HI,
+                               activebackground=BG, highlightthickness=0, bd=0, cursor="arrow")
+        check.grid(row=0, column=0, padx=(8, 0), pady=11)
+        tk.Label(row, text=fit(s["title"], f(11, "bold"), TITLE_PIXELS), font=f(11, "bold"), bg=BG, fg=INK,
+                 anchor="w").grid(row=0, column=1, sticky="w", padx=(0, 14))
+        kind_cell = tk.Frame(row, bg=BG)
+        kind_cell.grid(row=0, column=2, sticky="w")
+        tk.Label(kind_cell, text="●", font=f(8), bg=BG, fg=ACCENT[kind]).pack(side="left")
+        tk.Label(kind_cell, text=" " + LABEL[kind], font=f(10), bg=BG, fg=MUTED).pack(side="left")
+        when = f"{s['when']:%b} {s['when'].day}, {s['when']:%I:%M %p}".replace(" 0", " ")
+        tk.Label(row, text=when, font=f(10), bg=BG, fg=MUTED, anchor="w").grid(row=0, column=3, sticky="w")
+        size = f"{s.get('words', 0):,} words" if kind == "document" else fmt_duration(s["duration"])
+        if s["flags"]:
+            size += f" · {s['flags']} flag{'s' if s['flags'] != 1 else ''}"
+        tk.Label(row, text=size, font=f(10), bg=BG, fg=MUTED, anchor="w").grid(row=0, column=4, sticky="w")
+        tk.Label(row, text="" if s["done"] else "Unfinished", font=f(9, "bold"), bg=BG, fg=ACCENT["video"],
+                 anchor="e").grid(row=0, column=5, sticky="e", padx=(0, 8))
+        tk.Frame(parent_frame, bg=BORDER, height=1).pack(fill="x")
+
+        def paint(color):
+            for w in [row] + list(row.winfo_children()) + list(kind_cell.winfo_children()):
+                try:
+                    w.config(bg=color)
+                except tk.TclError:
+                    pass
+            check.config(activebackground=color)
+
+        def bind_open(w):
+            if w is check:
+                return
+            w.bind("<Button-1>", lambda e: on_open(s["path"]))
+            w.bind("<Enter>", lambda e: paint(SURFACE))
+            w.bind("<Leave>", lambda e: paint(BG))
+            for child in w.winfo_children():
+                bind_open(child)
+
+        bind_open(row)
+
+    query.trace_add("write", lambda *_: render())
     render()
     return root

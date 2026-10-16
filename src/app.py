@@ -108,7 +108,7 @@ class App:
             return self.start_up()
         self._show(dashboard.build(self.root, self.start, self.open_session, self.delete_sessions, self.dash_state,
                                    user=self.user, on_account=self.show_account, on_logout=self.log_out),
-                   self._center(1100, dashboard.HEIGHT_START))
+                   self._center(dashboard.WIDTH_START, dashboard.HEIGHT_START))
 
     def delete_sessions(self, sessions):
         """Move the chosen sessions' folders to the Trash (recoverable) after one confirmation."""

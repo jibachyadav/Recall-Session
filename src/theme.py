@@ -4,17 +4,19 @@ from tkinter import ttk
 
 FONT = "Ubuntu Sans"          # installed with Ubuntu; Tk falls back to a default font if it is missing
 
-BG = "#0b0e1a"                # window
-SURFACE = "#141830"           # cards, panels
-SURFACE_HI = "#1b2040"        # hovered / raised
-BORDER = "#262c52"
-INK = "#f1f3ff"               # main text
-MUTED = "#8f97c2"             # secondary text
-DANGER = "#ff5d73"
-DARK_TEXT = "#0b0e1a"         # text on bright accent buttons
-ACCENT = {"live": "#8b8cff", "video": "#ff6b8a", "document": "#34d6a8", "other": "#34d6a8"}
-HIGHLIGHT_FLAG = "#ffd84d"    # you pressed Flag here
-HIGHLIGHT_KEY = "#7ee8b0"     # stressed as important
+BG = "#15171c"                # window
+SIDEBAR = "#101216"           # the left sidebar on the home screen
+SURFACE = "#1c1f26"           # panels, inputs
+SURFACE_HI = "#262a33"        # hovered / raised
+BORDER = "#2c313b"
+INK = "#e8eaee"               # main text
+MUTED = "#8e95a2"             # secondary text
+DANGER = "#e5675d"
+DARK_TEXT = "#101216"         # text on bright accent buttons
+# One main colour (blue, the buttons) and a quiet colour per kind of session
+ACCENT = {"live": "#5b8def", "video": "#d9a441", "document": "#5fb58a", "other": "#5fb58a"}
+HIGHLIGHT_FLAG = "#f2c94c"    # you pressed Flag here
+HIGHLIGHT_KEY = "#7fd3a5"     # stressed as important
 
 
 def f(size=11, weight="normal"):
