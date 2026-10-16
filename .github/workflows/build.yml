@@ -59,3 +59,4 @@ jobs:
         with:
           files: packages/*
           generate_release_notes: true
+          prerelease: true        # beta: the Windows version has not been tried on a real PC yet
