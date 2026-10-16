@@ -3,7 +3,8 @@
 A desktop app that listens to your online classes and videos, keeps a live transcript, and turns each session into
 clear notes. It runs on your own computer: speech recognition is local, and the AI parts work without paying for anything.
 
-> **Status:** works on Linux (Ubuntu / GNOME / Wayland). The Windows port and installers are not done yet.
+> **Status:** works on Linux (Ubuntu / GNOME / Wayland) and installs from a `.deb`, AppImage or tarball. A Windows version
+> is written and builds an installer through GitHub Actions, but it has **not been tested on a real Windows computer yet**.
 
 ## What it does
 
@@ -49,20 +50,35 @@ You pick the spoken language when you name a session: Auto, English, Nepali or H
 
 Speech-to-text is always local ([faster-whisper](https://github.com/SYSTRAN/faster-whisper)).
 
-## Install (Linux)
+## Install
 
-You need Python 3.12, `ffmpeg`, PipeWire (with `pw-dump`) and `gnome-screenshot`.
+**Linux (easiest):** download from the Releases page and use one of:
 
 ```bash
-sudo apt install python3-venv python3-tk ffmpeg gnome-screenshot
+sudo apt install ./recall-session_0.1.0_amd64.deb          # adds it to your app menu and installs ffmpeg etc.
+# or, with no install:
+chmod +x Recall-Session-0.1.0-x86_64.AppImage && ./Recall-Session-0.1.0-x86_64.AppImage
+```
+
+The AppImage and tarball need `ffmpeg`, `gnome-screenshot` and `pipewire-bin` already installed
+(`sudo apt install ffmpeg gnome-screenshot pipewire-bin`); the app tells you if something is missing.
+
+**Windows:** run `Recall-Session-0.1.0-Setup.exe` (untested, see the status above). Online classes are detected by
+a program using your microphone, and the class sound is captured with WASAPI loopback.
+
+**First run:** the app shows a one-time screen that downloads the speech models (about 630 MB for English, plus an
+optional 1.6 GB for Nepali/Hindi). After that, transcription works offline.
+
+### Run from source (Linux)
+
+```bash
+sudo apt install python3-venv python3-tk ffmpeg gnome-screenshot pipewire-bin
 git clone https://github.com/jibachyadav/Recall-Session.git
 cd Recall-Session
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 ./run.sh
 ```
-
-The first transcription downloads the Whisper model once (large models are over 1 GB), so do it on a good connection.
 
 Optional free local AI:
 
@@ -71,6 +87,16 @@ Optional free local AI:
 ollama pull qwen2.5:1.5b
 ollama pull qwen2.5:3b
 ```
+
+### Build the installers yourself
+
+```bash
+packaging/linux/build.sh                       # .deb + AppImage + tar.gz into dist-packages/
+powershell -File packaging\windows\build.ps1   # on Windows: Setup.exe + zip (needs Inno Setup)
+```
+
+GitHub Actions (`.github/workflows/build.yml`) builds both on every push; pushing a tag such as `v0.1.0` also
+publishes a GitHub Release with the downloads attached. `app.py --self-test` checks that a built package is complete.
 
 ## Where your data lives
 
@@ -99,6 +125,9 @@ src/translate.py    Claude translation / improve
 src/documents.py    PDF / Word / text summaries
 src/auth*.py        local accounts
 src/osdep.py        OS-specific bits (screenshots, trash, call detection)
+src/record_win.py   Windows recording (speakers + microphone)
+src/models.py       speech-model download (first-run screen: src/setup_ui.py)
+packaging/          PyInstaller recipe, Linux and Windows build scripts
 ```
 
 ## Privacy and consent
@@ -108,8 +137,8 @@ and follow your school's rules.
 
 ## Roadmap
 
-- Linux installer (AppImage / .deb) and a first-run model download screen
-- Windows version (needs a Windows tester)
+- Test the Windows version on a real Windows computer (recording, call detection, installer)
+- Smaller packages (they are about 120-160 MB before the models)
 - Light theme
 
 ## License

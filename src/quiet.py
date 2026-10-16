@@ -73,6 +73,9 @@ def call_running():
     import json
     import os
 
+    from src import osdep
+    if osdep.IS_WINDOWS:
+        return osdep.windows_call_running()
     try:
         dump = json.loads(subprocess.run(["pw-dump"], capture_output=True, text=True, timeout=5).stdout)
     except Exception:

@@ -3,8 +3,6 @@ import json
 import select
 import subprocess
 import sys
-import termios
-import tty
 from pathlib import Path
 
 import config
@@ -44,6 +42,7 @@ def run_until_stop(logger):
     """Terminal mode: block until Enter (or q); FLAG_KEY logs a flag."""
     if not sys.stdin.isatty():
         return  # no keyboard attached: nothing to listen to
+    import termios, tty            # Linux terminal only; the desktop app never gets here (and Windows has neither)
     fd = sys.stdin.fileno()
     old = termios.tcgetattr(fd)
     try:

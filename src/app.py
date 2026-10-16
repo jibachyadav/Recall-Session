@@ -22,14 +22,9 @@ from src.build_notes import process_session
 from src.hotkey_logger import FlagLogger, fmt
 from src.live import LiveTranscriber
 from src.live_panel import LivePanel
-from src.record import Recorder
+from src.record import make_recorder
 from src.important import load_important
 from src.transcript_view import merge_runs, paragraphs
-
-SOURCES = {
-    "mic": ("Live class (online or in the room)", [config.SYSTEM_AUDIO_SOURCE, config.AUDIO_SOURCE]),
-    "system": ("Video playing on this computer", config.SYSTEM_AUDIO_SOURCE),
-}
 
 
 def new_session_dir(name):
@@ -259,7 +254,7 @@ class App:
         source = "mic" if kind == "live" else "system"
         session = new_session_dir(title or kind.title())
         save_settings(session, type=kind, title=title or kind.title(), spoken=spoken)
-        self.rec = Recorder(session / "recording.wav", live=True, source=SOURCES[source][1])
+        self.rec = make_recorder(session / "recording.wav", live=True, kind=source)
         try:
             self.rec.start()
         except RuntimeError as e:

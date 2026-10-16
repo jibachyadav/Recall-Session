@@ -6,3 +6,4 @@ python-docx
 send2trash
 jeepney; sys_platform == "linux"        # the Linux file chooser
 mss; sys_platform != "linux"            # screenshots on Windows / macOS
+pyaudiowpatch; sys_platform == "win32"   # Windows: record what the speakers play

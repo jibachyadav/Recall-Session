@@ -80,3 +80,13 @@ class Recorder:
                 pass
         except Exception:
             pass
+
+
+def make_recorder(out_path, live=False, kind="mic"):
+    """The right recorder for this computer. kind "mic": the class sound plus your microphone; "system": only the
+    sound playing on the computer (a video)."""
+    if osdep.IS_WINDOWS:
+        from src.record_win import WindowsRecorder
+        return WindowsRecorder(out_path, live=live, mic=(kind == "mic"))
+    source = [config.SYSTEM_AUDIO_SOURCE, config.AUDIO_SOURCE] if kind == "mic" else config.SYSTEM_AUDIO_SOURCE
+    return Recorder(out_path, live=live, source=source)

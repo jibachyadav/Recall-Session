@@ -9,12 +9,15 @@ import threading
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
-from jeepney import DBusAddress, MatchRule, message_bus, new_method_call
-from jeepney.io.blocking import open_dbus_connection
+try:
+    from jeepney import DBusAddress, MatchRule, message_bus, new_method_call
+    from jeepney.io.blocking import open_dbus_connection
+except ImportError:                                     # Windows / macOS: the app falls back to Tk's own chooser
+    DBusAddress = None
 
 PATTERNS = ["*.pdf", "*.PDF", "*.docx", "*.DOCX", "*.txt", "*.TXT", "*.md"]
 PORTAL = DBusAddress("/org/freedesktop/portal/desktop", bus_name="org.freedesktop.portal.Desktop",
-                     interface="org.freedesktop.portal.FileChooser")
+                     interface="org.freedesktop.portal.FileChooser") if DBusAddress else None
 _open_requests = {}       # request path -> connection, so a request can be closed (used by tests)
 
 
@@ -90,6 +93,8 @@ def choose_document_async(callback, title="Choose a PDF, Word or text file"):
     folder = str(home / "Documents" if (home / "Documents").exists() else home)
 
     def work():
+        if PORTAL is None:
+            return callback(None)
         path = portal_choose(title, folder)
         if path is None:
             path = _zenity_choose(title, folder)

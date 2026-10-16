@@ -100,13 +100,13 @@ def take_screenshot(path):
 
 
 def call_detection_supported():
-    """Can this computer tell that a Zoom/Teams/Meet call is running? (Linux with PipeWire only, so far.)"""
-    return IS_LINUX and shutil.which("pw-dump") is not None
+    """Can this computer tell that a Zoom/Teams/Meet call is running? (Linux with PipeWire, or Windows.)"""
+    return IS_WINDOWS or (IS_LINUX and shutil.which("pw-dump") is not None)
 
 
 def audio_recording_supported():
-    """Can the app capture the sound of calls and videos? (Linux for now; the Windows version is not built yet.)"""
-    return IS_LINUX
+    """Can the app capture the sound of calls and videos? (Linux and Windows.)"""
+    return IS_LINUX or IS_WINDOWS
 
 
 def ffmpeg_path():
@@ -121,8 +121,8 @@ def ffmpeg_path():
 def missing_tools():
     """Programs the app needs that are not installed, as (name, how to get it). Empty when all is well."""
     problems = []
-    if not (shutil.which("ffmpeg") or Path(ffmpeg_path()).is_file()):
-        problems.append(("ffmpeg", "sudo apt install ffmpeg" if IS_LINUX else "reinstall Recall-Session"))
+    if IS_LINUX and not (shutil.which("ffmpeg") or Path(ffmpeg_path()).is_file()):   # (Windows records without ffmpeg)
+        problems.append(("ffmpeg", "sudo apt install ffmpeg"))
     if IS_LINUX and not any(shutil.which(t) for t in ("gnome-screenshot", "grim", "scrot")):
         problems.append(("gnome-screenshot (for flag screenshots)", "sudo apt install gnome-screenshot"))
     if IS_LINUX and not shutil.which("pw-dump"):
@@ -136,3 +136,54 @@ def hidden_window():
         import subprocess as sp
         return {"creationflags": sp.CREATE_NO_WINDOW}
     return {}
+
+
+# ---- Windows: who is using the microphone? ----------------------------------------------------------------------
+_MIC_KEY = r"Software\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\microphone"
+_OWN_PROGRAMS = {"recall-session.exe", "python.exe", "pythonw.exe", "ffmpeg.exe"}
+
+
+def mic_users_from(entries):
+    """entries: (registry key name, LastUsedTimeStart, LastUsedTimeStop) for each app Windows has seen use the
+    microphone. An app is using it right now when it started and has not stopped (Stop == 0).
+    Returns the program names, e.g. ["Zoom.exe", "chrome.exe"], leaving out our own."""
+    users = []
+    for name, start, stop in entries:
+        exe = name.replace("#", "\\").rsplit("\\", 1)[-1]
+        if start and not stop and exe.lower() not in _OWN_PROGRAMS:
+            users.append(exe)
+    return users
+
+
+def windows_call_running():
+    """Name of a program using the microphone right now (Zoom, Teams, a browser in a Meet call...), or None.
+
+    Windows can't cheaply say "this program is also playing sound", so unlike on Linux the microphone alone is the
+    signal. A voice recorder would also count; that is acceptable because it only decides when recording may begin."""
+    try:
+        import winreg
+    except ImportError:
+        return None
+    entries = []
+    try:
+        root = winreg.OpenKey(winreg.HKEY_CURRENT_USER, _MIC_KEY)
+    except OSError:
+        return None
+    for parent in ("", "NonPackaged"):
+        try:
+            folder = winreg.OpenKey(root, parent) if parent else root
+            for i in range(winreg.QueryInfoKey(folder)[0]):
+                name = winreg.EnumKey(folder, i)
+                if name == "NonPackaged":
+                    continue
+                try:
+                    with winreg.OpenKey(folder, name) as app:
+                        start = winreg.QueryValueEx(app, "LastUsedTimeStart")[0]
+                        stop = winreg.QueryValueEx(app, "LastUsedTimeStop")[0]
+                    entries.append((name, start, stop))
+                except OSError:
+                    continue
+        except OSError:
+            continue
+    users = mic_users_from(entries)
+    return users[0] if users else None

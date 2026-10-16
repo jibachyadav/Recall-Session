@@ -1,6 +1,8 @@
 """Live helper AI: Claude when it works, otherwise a free local model (Ollama)."""
 import atexit
 import json
+import sys
+import os
 import re
 import shutil
 import subprocess
@@ -26,7 +28,11 @@ def claude_works():
 
 def _ollama_bin():
     path = Path(config.OLLAMA_BIN).expanduser()
-    return str(path) if path.exists() else shutil.which("ollama")
+    if path.exists():
+        return str(path)
+    found = shutil.which("ollama")
+    windows_default = Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "Ollama" / "ollama.exe"
+    return found or (str(windows_default) if sys.platform.startswith("win") and windows_default.exists() else None)
 
 
 def _api(path, payload=None, timeout=5):
