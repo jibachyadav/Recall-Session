@@ -16,7 +16,7 @@ from src import dashboard, llm, quiet, theme
 from src.theme import (ACCENT, DANGER, DARK_TEXT, FONT, HIGHLIGHT_FLAG, HIGHLIGHT_KEY, INK, MUTED, SURFACE, SURFACE_HI, mix,
                        render_markdown)
 from src.language import save_settings
-from src import auth, documents, filechooser, osdep, settings, transcribe, translate
+from src import auth, documents, filechooser, osdep, settings, setup_ui, transcribe, translate
 from src.auth_ui import AuthFlow
 from src.build_notes import process_session
 from src.hotkey_logger import FlagLogger, fmt
@@ -59,6 +59,8 @@ class App:
     # ---- accounts -----------------------------------------------------------
     def start_up(self):
         """First screen: straight in for someone who chose 'keep me signed in', else log in / register."""
+        if not getattr(self, "_setup_done", False) and setup_ui.needed():
+            return self.show_setup()
         try:
             osdep.ensure_data_dir()
             osdep.migrate_legacy_data()             # one-time: bring older data from the program folder
@@ -71,6 +73,13 @@ class App:
             messagebox.showerror("Accounts problem", str(e))
             return self.root.after(100, self.root.destroy)
         self.auth_flow.show_register()          # nobody has an account yet
+
+    def show_setup(self):
+        """First run only: download the speech models, then carry on to login."""
+        def done():
+            self._setup_done = True
+            self.start_up()
+        self._show(setup_ui.build(self.root, done), self._center(560, 520))
 
     def signed_in(self, user):
         self.user = user
