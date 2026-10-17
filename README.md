@@ -81,22 +81,54 @@ Speech-to-text is always local ([faster-whisper](https://github.com/SYSTRAN/fast
 
 ## Install
 
-**Linux (easiest):** download from the Releases page and use one of:
+Download the file for your computer from the [Download](#download) table (or the
+[Releases page](https://github.com/jibachyadav/Recall-Session/releases/latest)), install it, then open the app.
+Nothing else is needed: Python, the libraries and the English speech models are inside the file.
+
+### Ubuntu / Debian (.deb)
+
+1. **Double-click** `recall-session_amd64.deb` in your Downloads folder. Ubuntu's software installer opens.
+2. Click **Install** and type your password. This also installs the small programs the app needs
+   (`ffmpeg`, `gnome-screenshot`, `pipewire-bin`).
+3. Press the **Super** key, type **Recall-Session** and open it.
+
+If double-clicking doesn't open the installer, run this in a terminal instead:
 
 ```bash
-sudo apt install ./recall-session_amd64.deb          # adds it to your app menu and installs ffmpeg etc.
-# or, with no install:
-chmod +x Recall-Session-x86_64.AppImage && ./Recall-Session-x86_64.AppImage
+cd ~/Downloads
+sudo apt install ./recall-session_amd64.deb
 ```
 
-The AppImage and tarball need `ffmpeg`, `gnome-screenshot` and `pipewire-bin` already installed
-(`sudo apt install ffmpeg gnome-screenshot pipewire-bin`); the app tells you if something is missing.
+The app does not start by itself after installing: open it from the app menu like any other program.
 
-**Windows:** run `Recall-Session-Setup.exe` (untested, see the status above). Online classes are detected by
-a program using your microphone, and the class sound is captured with WASAPI loopback.
+### Any Linux (AppImage, no install)
 
-**First run:** nothing to download for English: the speech models are inside the installer. Nepali/Hindi use a
-bigger model (1.6 GB) that is downloaded once, the first time you process a Nepali or Hindi session.
+```bash
+cd ~/Downloads
+chmod +x Recall-Session-x86_64.AppImage
+./Recall-Session-x86_64.AppImage
+```
+
+The AppImage and the tarball need `ffmpeg`, `gnome-screenshot` and `pipewire-bin` already installed
+(`sudo apt install ffmpeg gnome-screenshot pipewire-bin`). The app tells you if something is missing.
+
+### Windows
+
+1. Run `Recall-Session-Setup.exe` and follow the steps.
+2. Windows may show a blue **"Windows protected your PC"** warning, because the app is not signed with a paid
+   certificate. Click **More info**, then **Run anyway**.
+3. Open **Recall-Session** from the Start menu.
+
+The Windows version is a **beta**: it builds and installs through GitHub Actions but has not been tried on many real
+PCs yet. Online classes are detected by a program using your microphone, and the class sound is captured with WASAPI
+loopback. Please [report problems](https://github.com/jibachyadav/Recall-Session/issues).
+
+### First run
+
+Nothing to download for English. The app opens straight to "Create your account", and transcription works offline.
+Nepali and Hindi use a bigger model (1.6 GB), downloaded once, the first time you process a Nepali or Hindi session.
+
+Your sessions and accounts stay on your computer (see [Where your data lives](#where-your-data-lives)).
 
 ### Run from source (Linux)
 
