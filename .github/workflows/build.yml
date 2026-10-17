@@ -59,4 +59,4 @@ jobs:
         with:
           files: packages/*
           generate_release_notes: true
-          prerelease: true        # beta: the Windows version has not been tried on a real PC yet
+          # not marked as a pre-release: GitHub's "latest" download links skip pre-releases
