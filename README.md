@@ -220,6 +220,4 @@ and follow your school's rules.
 - Smaller packages (they are about 120-160 MB before the models)
 - Light theme
 
-## License
 
-No license has been chosen yet; all rights reserved by the author until one is added.
