@@ -87,17 +87,18 @@ Nothing else is needed: Python, the libraries and the English speech models are 
 
 ### Ubuntu / Debian (.deb)
 
-1. **Double-click** `recall-session_amd64.deb` in your Downloads folder. Ubuntu's software installer opens.
-2. Click **Install** and type your password. This also installs the small programs the app needs
-   (`ffmpeg`, `gnome-screenshot`, `pipewire-bin`).
-3. Press the **Super** key, type **Recall-Session** and open it.
-
-If double-clicking doesn't open the installer, run this in a terminal instead:
+Open a terminal (press **Ctrl+Alt+T**) and run:
 
 ```bash
 cd ~/Downloads
 sudo apt install ./recall-session_amd64.deb
 ```
+
+Type your password when asked. This installs the app and the small programs it needs (`ffmpeg`, `gnome-screenshot`,
+`pipewire-bin`). Then press the **Super** key, type **Recall-Session** and open it.
+
+Prefer clicking? **Don't double-click the file**: on many Ubuntu versions that opens the Archive Manager, which only lists
+what is inside. Right-click it, choose **Open With Other Application**, then **Software Install**, and click **Install**.
 
 The app does not start by itself after installing: open it from the app menu like any other program.
 
