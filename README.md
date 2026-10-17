@@ -220,4 +220,6 @@ and follow your school's rules.
 - Smaller packages (they are about 120-160 MB before the models)
 - Light theme
 
+## License
 
+[MIT](LICENSE): you may use, copy and change this code, as long as you keep the copyright notice.

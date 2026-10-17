@@ -525,7 +525,7 @@ empty cache and no internet), and the GitHub release pipeline.
 - **Secrets never go into git:** `.env`, accounts, recordings and sessions are in `.gitignore`. The repository was
   scanned for keys before each push.
 - **The exposed key:** rotate the key that was pasted into a chat early in the project.
-- **License:** none chosen yet, so by default all rights are reserved. Add one (MIT is common) if others may reuse the code.
+- **License:** MIT (see the `LICENSE` file): others may use, copy and change the code if they keep the copyright notice.
 
 ## 17. Roadmap
 
@@ -533,9 +533,8 @@ Most useful next:
 
 1. A friend tests the **Windows** installer on a real PC; fix what breaks.
 2. **Rotate the API key** and test Claude features with a funded key.
-3. Add a **license** (MIT).
-4. Add **automated tests** (accounts, transcript layout, the mixer, session reading).
-5. **Smaller packages** (trim unused libraries, optional model download).
+3. Add **automated tests** (accounts, transcript layout, the mixer, session reading).
+4. **Smaller packages** (trim unused libraries, optional model download).
 
 Later: light theme, code signing for Windows, auto-update, a tidy settings page, macOS, search across sessions
 (SQLite), an invite-link that opens the app, a live-recording screenshot in the README, better Nepali.
