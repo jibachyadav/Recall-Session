@@ -1,3 +1,6 @@
+> **Historical.** This is the plan written on day one (2026-10-14), kept for reference. The app grew far beyond it. For the
+> current, complete description read [GUIDE.md](GUIDE.md).
+
 # Recall-Session: Project Plan
 
 2026-10-14

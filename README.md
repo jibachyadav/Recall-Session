@@ -19,6 +19,9 @@ clear notes. It runs on your own computer: speech recognition is local, and the 
 The files are about 700 MB because the English speech models are inside: download, install, open, and it works, even offline.
 Install steps are under [Install](#install) below.
 
+> **Want to understand everything (why, how, technologies, building, problems)?** Read the complete
+> **[Project Guide](docs/GUIDE.md)**.
+
 ## Screenshots
 
 *Sample data, made up for these pictures.*
