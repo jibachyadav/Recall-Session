@@ -20,7 +20,8 @@ The files are about 700 MB because the English speech models are inside: downloa
 Install steps are under [Install](#install) below.
 
 > **Want to understand everything (why, how, technologies, building, problems)?** Read the complete
-> **[Project Guide](docs/GUIDE.md)**.
+> **[Project Guide](docs/GUIDE.md)**, or the short **[Explained simply](docs/EXPLAIN-SIMPLY.md)** (a pitch and ready answers to
+> common questions).
 
 ## Screenshots
 

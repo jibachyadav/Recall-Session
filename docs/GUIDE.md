@@ -4,6 +4,8 @@ This is the "everything in one place" document. If you come back to this project
 It explains **why** the app exists, **what** it does, **how** it works inside, **which technologies** it uses and
 why, **how it is built and released**, what went wrong along the way, and what is still open.
 
+> Short and simple version with ready answers to common questions: [EXPLAIN-SIMPLY.md](EXPLAIN-SIMPLY.md).
+>
 > Written 2026-10-17, for version 0.1.2. Where something has not been tested, this guide says so.
 
 ## Contents
