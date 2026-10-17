@@ -131,6 +131,19 @@ Nepali and Hindi use a bigger model (1.6 GB), downloaded once, the first time yo
 
 Your sessions and accounts stay on your computer (see [Where your data lives](#where-your-data-lives)).
 
+### How to start the app
+
+| How you got it | How to start it |
+|---|---|
+| Installed the `.deb` | Press the **Super** key (the Windows key), type **Recall-Session** and click the icon. Or run `recall-session` in a terminal. |
+| AppImage | In a terminal: `cd ~/Downloads && ./Recall-Session-x86_64.AppImage` |
+| Windows installer | Open **Recall-Session** from the Start menu (or the desktop shortcut, if you chose one). |
+| Downloaded the source code | In a terminal: `cd Recall-Session && ./run.sh` (see below) |
+
+The first time, you create an account (name, username, password). Then click **Record a live class**, **Record a video**
+or **Add a document** on the home screen. If the app doesn't open and a terminal is showing text, copy that text when
+asking for help.
+
 ### Run from source (Linux)
 
 ```bash
