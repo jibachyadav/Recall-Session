@@ -5,6 +5,7 @@ from pathlib import Path
 from faster_whisper import BatchedInferencePipeline, WhisperModel
 
 import config
+from src import models
 from src.language import save_settings
 
 _models = {}
@@ -13,7 +14,7 @@ _models = {}
 def get_model(name=None):
     name = name or config.WHISPER_MODEL
     if name not in _models:
-        _models[name] = WhisperModel(name, device="cpu", compute_type="int8")
+        _models[name] = WhisperModel(models.local_path(name) or name, device="cpu", compute_type="int8")
     return _models[name]
 
 

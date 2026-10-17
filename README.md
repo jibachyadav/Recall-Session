@@ -12,10 +12,11 @@ clear notes. It runs on your own computer: speech recognition is local, and the 
 
 | Your computer | Download |
 |---|---|
-| Windows | [Recall-Session-0.1.0-Setup.exe](https://github.com/jibachyadav/Recall-Session/releases/download/v0.1.0/Recall-Session-0.1.0-Setup.exe) (beta, not tested on many PCs yet) |
-| Ubuntu / Debian | [recall-session_0.1.0_amd64.deb](https://github.com/jibachyadav/Recall-Session/releases/download/v0.1.0/recall-session_0.1.0_amd64.deb) |
-| Any Linux | [Recall-Session-0.1.0-x86_64.AppImage](https://github.com/jibachyadav/Recall-Session/releases/download/v0.1.0/Recall-Session-0.1.0-x86_64.AppImage) |
+| Windows | [Recall-Session-Setup.exe](https://github.com/jibachyadav/Recall-Session/releases/latest/download/Recall-Session-Setup.exe) (beta, not tested on many PCs yet) |
+| Ubuntu / Debian | [recall-session_amd64.deb](https://github.com/jibachyadav/Recall-Session/releases/latest/download/recall-session_amd64.deb) |
+| Any Linux | [Recall-Session-x86_64.AppImage](https://github.com/jibachyadav/Recall-Session/releases/latest/download/Recall-Session-x86_64.AppImage) |
 
+The files are about 700 MB because the English speech models are inside: download, install, open, and it works, even offline.
 Install steps are under [Install](#install) below.
 
 ## Screenshots
@@ -83,19 +84,19 @@ Speech-to-text is always local ([faster-whisper](https://github.com/SYSTRAN/fast
 **Linux (easiest):** download from the Releases page and use one of:
 
 ```bash
-sudo apt install ./recall-session_0.1.0_amd64.deb          # adds it to your app menu and installs ffmpeg etc.
+sudo apt install ./recall-session_amd64.deb          # adds it to your app menu and installs ffmpeg etc.
 # or, with no install:
-chmod +x Recall-Session-0.1.0-x86_64.AppImage && ./Recall-Session-0.1.0-x86_64.AppImage
+chmod +x Recall-Session-x86_64.AppImage && ./Recall-Session-x86_64.AppImage
 ```
 
 The AppImage and tarball need `ffmpeg`, `gnome-screenshot` and `pipewire-bin` already installed
 (`sudo apt install ffmpeg gnome-screenshot pipewire-bin`); the app tells you if something is missing.
 
-**Windows:** run `Recall-Session-0.1.0-Setup.exe` (untested, see the status above). Online classes are detected by
+**Windows:** run `Recall-Session-Setup.exe` (untested, see the status above). Online classes are detected by
 a program using your microphone, and the class sound is captured with WASAPI loopback.
 
-**First run:** the app shows a one-time screen that downloads the speech models (about 630 MB for English, plus an
-optional 1.6 GB for Nepali/Hindi). After that, transcription works offline.
+**First run:** nothing to download for English: the speech models are inside the installer. Nepali/Hindi use a
+bigger model (1.6 GB) that is downloaded once, the first time you process a Nepali or Hindi session.
 
 ### Run from source (Linux)
 

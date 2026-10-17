@@ -10,6 +10,8 @@ datas, binaries, hidden = [(str(ROOT / "assets"), "assets")], [], []
 for pkg in ("faster_whisper", "ctranslate2", "av", "onnxruntime", "tokenizers", "certifi"):
     d, b, h = collect_all(pkg)
     datas += d; binaries += b; hidden += h
+if (ROOT / "packaging" / "models").exists():          # English speech models, fetched by packaging/fetch_models.py
+    datas += [(str(ROOT / "packaging" / "models"), "models")]
 if sys.platform.startswith("win"):
     hidden += ["pyaudiowpatch"]
 

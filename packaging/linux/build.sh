@@ -14,6 +14,7 @@ python3 -m venv "$WORK/venv"
 "$WORK/venv/bin/pip" install -q --upgrade pip
 "$WORK/venv/bin/pip" install -q -r "$ROOT/requirements.txt" pyinstaller
 "$WORK/venv/bin/python" "$ROOT/packaging/make_icon.py"
+"$WORK/venv/bin/python" "$ROOT/packaging/fetch_models.py"
 
 echo "== 2/4  bundle the program"
 (cd "$WORK" && "$WORK/venv/bin/pyinstaller" "$ROOT/packaging/recall-session.spec" --noconfirm \
@@ -54,7 +55,7 @@ Description: Record classes and videos, with live transcripts and notes
  flags confusing moments and writes summaries. Speech recognition runs locally.
 EOF
 chmod -R u+rwX,go+rX,go-w "$DEB"
-dpkg-deb --root-owner-group --build "$DEB" "$OUT/recall-session_${VERSION}_amd64.deb" >/dev/null
+dpkg-deb --root-owner-group --build "$DEB" "$OUT/recall-session_amd64.deb" >/dev/null
 
 echo "== 4/4  AppImage and .tar.gz"
 AD="$WORK/AppDir"
@@ -70,8 +71,8 @@ if [ ! -x "$TOOL" ]; then
     curl -sL -o "$TOOL" https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
     chmod +x "$TOOL"
 fi
-ARCH=x86_64 "$TOOL" --appimage-extract-and-run "$AD" "$OUT/Recall-Session-${VERSION}-x86_64.AppImage" >"$WORK/appimage.log" 2>&1 \
+ARCH=x86_64 "$TOOL" --appimage-extract-and-run "$AD" "$OUT/Recall-Session-x86_64.AppImage" >"$WORK/appimage.log" 2>&1 \
     || { echo "AppImage step failed:"; tail -5 "$WORK/appimage.log"; }
-tar -C "$WORK/dist" -czf "$OUT/recall-session-${VERSION}-linux-x86_64.tar.gz" recall-session
+tar -C "$WORK/dist" -czf "$OUT/recall-session-linux-x86_64.tar.gz" recall-session
 
 echo; ls -lh "$OUT"

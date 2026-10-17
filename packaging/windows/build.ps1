@@ -12,6 +12,7 @@ python -m venv "$work\venv"
 & "$work\venv\Scripts\python.exe" -m pip install -q --upgrade pip
 & "$work\venv\Scripts\python.exe" -m pip install -q -r "$root\requirements.txt" pyinstaller
 & "$work\venv\Scripts\python.exe" "$root\packaging\make_icon.py"
+& "$work\venv\Scripts\python.exe" "$root\packaging\fetch_models.py"
 
 Write-Host "== 2/3  bundle the program"
 Push-Location $work
@@ -26,6 +27,6 @@ if (Test-Path $log) { Get-Content $log }
 if ($test.ExitCode -ne 0) { throw "The packaged program failed its self-test (exit code $($test.ExitCode))." }
 
 Write-Host "== 3/3  installer and zip"
-Compress-Archive -Path "$work\dist\recall-session" -DestinationPath "$root\dist-packages\recall-session-$version-windows-x64.zip" -Force
+Compress-Archive -Path "$work\dist\recall-session" -DestinationPath "$root\dist-packages\recall-session-windows-x64.zip" -Force
 iscc "/DAppVersion=$version" "$root\packaging\windows\recall-session.iss"
 Get-ChildItem "$root\dist-packages"

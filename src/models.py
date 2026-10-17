@@ -35,7 +35,20 @@ def purpose(name):
     return CATALOG.get(name, ("speech recognition", 0))[0]
 
 
+def bundled_dir():
+    """Models shipped inside the installed app (the installers include the English ones)."""
+    return config.APP_DIR / "models"
+
+
+def local_path(name):
+    """Folder of a model that came with the app, or None (then it is read from / downloaded to the cache)."""
+    folder = bundled_dir() / name
+    return str(folder) if (folder / "model.bin").exists() else None
+
+
 def is_downloaded(name):
+    if local_path(name):
+        return True
     from faster_whisper.utils import download_model
     try:
         download_model(name, local_files_only=True)

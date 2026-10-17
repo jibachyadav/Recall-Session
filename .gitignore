@@ -13,3 +13,4 @@ migrated-backup/
 dist-packages/
 build-linux/
 build-windows/
+packaging/models/
